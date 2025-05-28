@@ -4,19 +4,26 @@
 
 ## Development pipeline:
 
-`main` -> `x.y-dev` -> `[xyz]-Short-description` -> `x.y-dev` -> `main`
+`main` -> `x.y-dev` -> `xyz-Short-description` -> `x.y-dev` -> `main`
 
 #### Where:
 
 * `main` is a project **main** branch. Code merged into it **has to** be possible to run
-* `x.y-dev` (`0.1-dev`) is used to implement **major** parts of buisness logic. Changes merged into it **can** contain unfinished parts.
-* `[xyz]-Short-description` (`[112]-PostgresDB-setup`) is used to implement **minor** buisness logic elements. Changes **should** be as small as possible. Number assigned to each minor branch is derived from TODO list. Commits have to be squashed on Pull.
+* `x.y-dev` (`0.1-dev`) is used to implement **major** parts of business logic. Changes merged into it **can** contain unfinished parts.
+* `xyz-Short-description` (`112-PostgresDB-setup`) is used to implement **minor** business logic elements. Changes **should** be as small as possible. Number assigned to each minor branch is derived from TODO list. Commits have to be squashed on Pull.
 
 
 ## TODO:
+It is important to keep in mind that this is not a roadmap and as such this list doesn't describe the order in which problems will be approached. 
+Moreover, as this list is used to name minor changes and due to the fact that it is impossible to predict every necessary step it is destined to grow.
 
-1. API:
 
+1. Project
+   1. Initialization
+   2. Documentation
+   3. Quality of life
+
+2. API:
    1. Auth
       1. Setup PostgresDB to store Users
       2. Write authorization logic
@@ -29,8 +36,8 @@
       1. Integrate API logic with WebDAV layer
    4. Events
       1. Handle certain S3 Events
-2. AWS
 
+3. AWS
    1. Lambda
       1. Setup necessary logic to run GO on lambda
       2. Deploy suitable Lambda with code

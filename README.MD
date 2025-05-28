@@ -1,0 +1,43 @@
+# BurroWFS
+
+## [Versioning](https://semver.org/)
+
+## Development pipeline:
+
+`main` -> `x.y-dev` -> `[xyz]-Short-description` -> `x.y-dev` -> `main`
+
+#### Where:
+
+* `main` is a project **main** branch. Code merged into it **has to** be possible to run
+* `x.y-dev` (`0.1-dev`) is used to implement **major** parts of buisness logic. Changes merged into it **can** contain unfinished parts.
+* `[xyz]-Short-description` (`[112]-PostgresDB-setup`) is used to implement **minor** buisness logic elements. Changes **should** be as small as possible. Number assigned to each minor branch is derived from TODO list. Commits have to be squashed on Pull.
+
+
+## TODO:
+
+1. API:
+
+   1. Auth
+      1. Setup PostgresDB to store Users
+      2. Write authorization logic
+      3. [Optional] Support for Key auth ?
+   2. Files
+      1. Logic retrieving list of users files
+      2. Logic of file upload
+      3. Logic of file download
+   3. WebDAV
+      1. Integrate API logic with WebDAV layer
+   4. Events
+      1. Handle certain S3 Events
+2. AWS
+
+   1. Lambda
+      1. Setup necessary logic to run GO on lambda
+      2. Deploy suitable Lambda with code
+      3. Setup GitHub action to release
+   2. Postgres
+      1. Setup serverless Postgress instance
+      2. Setup migrations
+   3. S3
+      1. Setup S3 instance
+      2. Setup Events

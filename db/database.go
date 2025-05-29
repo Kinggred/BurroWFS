@@ -14,7 +14,7 @@ type DB struct {
 	Builder squirrel.StatementBuilderType
 }
 
-func DBConn() (*DB, error) {
+func Open() (*DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -33,6 +33,6 @@ func DBConn() (*DB, error) {
 	}, nil
 }
 
-func (db *DB) DBConnClose() {
+func (db *DB) Close() {
 	db.Pool.Close()
 }

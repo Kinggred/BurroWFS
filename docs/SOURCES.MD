@@ -9,6 +9,7 @@ https://github.com/jackc/pgx/wiki/Getting-started-with-pgx - pgx docs
 https://github.com/Masterminds/squirrel - squirrel 'docs'
 https://github.com/golang-migrate/migrate - migrate docs
 https://www.freecodecamp.org/news/database-migration-golang-migrate/ - Migrations in golang tutorial
+https://www.postgresql.org/docs/current/sql-createfunction.html - CREATE function
 
 Docker:
 https://docs.docker.com/compose/ - Docker compose docs

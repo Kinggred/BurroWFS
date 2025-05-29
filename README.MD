@@ -23,6 +23,7 @@ Moreover, as this list is used to name minor changes and due to the fact that it
       1. API
    2. Documentation
    3. Quality of life
+   4. Local Deployment
 
 2. API:
    1. Auth

@@ -2,6 +2,7 @@ package main
 
 import (
 	"burrowfs/api/routes"
+	"burrowfs/config"
 	"log"
 	"net/http"
 
@@ -9,6 +10,7 @@ import (
 )
 
 func main() {
+	config.LoadVariables()
 	router := chi.NewRouter()
 
 	router.Mount("/status", routes.StatusRoutes())

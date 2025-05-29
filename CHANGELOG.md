@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### [ADDED]
+### [Internal]
+- Local deployment docker-compose
+
+### [Added]
  - Basic API project structure
  - Healthcheck endpoint
+ - .env support

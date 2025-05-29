@@ -21,6 +21,7 @@ Moreover, as this list is used to name minor changes and due to the fact that it
 1. Project
    1. Initialization
       1. API
+      2. Database
    2. Documentation
    3. Quality of life
    4. Local Deployment

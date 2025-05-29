@@ -2,8 +2,10 @@ package config
 
 import (
 	"log"
+	"os"
 
 	"github.com/caarlos0/env/v9"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -18,8 +20,33 @@ type Config struct {
 var CONFIG Config
 
 func LoadVariables() {
-	err := env.Parse(&CONFIG)
+	err := godotenv.Load(getEnvFile("./.env"))
+	if err != nil {
+		log.Printf("Warning: could not load .env file: %v", err)
+	}
+
+	err = env.Parse(&CONFIG)
 	if err != nil {
 		log.Fatalf("Error loading environment variables: %v", err)
 	}
+}
+
+func getEnvFile(filePath string) string {
+	localPath := "./.env.local"
+	if !fileCheck(filePath) && filePath != localPath {
+		return getEnvFile(localPath)
+	}
+	return filePath
+}
+
+func fileCheck(filePath string) bool {
+	info, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		return false
+	}
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
+	return !info.IsDir()
 }

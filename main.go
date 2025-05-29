@@ -1,0 +1,22 @@
+package main
+
+import (
+	"burrowfs/api/routes"
+	"log"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+)
+
+func main() {
+	router := chi.NewRouter()
+
+	router.Mount("/status", routes.StatusRoutes())
+
+	log.Println("Listening on :8080")
+	err := http.ListenAndServe(":8080", router)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+}

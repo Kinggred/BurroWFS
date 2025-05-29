@@ -14,3 +14,14 @@
 ### Authorization
 Webdav clients support only the basic auth aka. User + Password
 JWT based auth might be implemented for webapps, but it is optional.
+
+### Database
+| Want to...                     | Use                      |
+| ------------------------------ | ------------------------ |
+| Full-featured, easy ORM        | **GORM**                 |
+| Type-safe, schema-first        | **Ent** or **SQLBoiler** |
+| Stick close to SQL, fast       | **pgx** + `sqlc`         |
+| Avoid raw SQL but no heavy ORM | **Squirrel**             |
+
+- `squirrel` - due to being used to sqlalchemy
+- golang-migrate

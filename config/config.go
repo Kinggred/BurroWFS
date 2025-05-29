@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -15,6 +16,7 @@ type Config struct {
 	PostgresUser     string `env:"POSTGRES_USER,required"`
 	PostgresPassword string `env:"POSTGRES_PASSWORD,required"`
 	PostgresDB       string `env:"POSTGRES_DB,required"`
+	PostgresDSN      string `env:"POSTGRES_DSN" envDefault:""`
 }
 
 var CONFIG Config
@@ -28,6 +30,16 @@ func LoadVariables() {
 	err = env.Parse(&CONFIG)
 	if err != nil {
 		log.Fatalf("Error loading environment variables: %v", err)
+	}
+
+	if CONFIG.PostgresDSN == "" {
+		CONFIG.PostgresDSN = buildPostgresDSN(
+			CONFIG.PostgresUser,
+			CONFIG.PostgresPassword,
+			CONFIG.PostgresHost,
+			CONFIG.PostgresPort,
+			CONFIG.PostgresDB,
+		)
 	}
 }
 
@@ -49,4 +61,10 @@ func fileCheck(filePath string) bool {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func buildPostgresDSN(user, password, host string, port int, dbname string) string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+		user, password, host, port, dbname,
+	)
 }

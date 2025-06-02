@@ -1,7 +1,7 @@
 package db
 
 import (
-	"burrowfs/config"
+	"burrowfs/core/config"
 	"context"
 	"time"
 

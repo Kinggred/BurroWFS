@@ -1,7 +1,7 @@
 package main
 
 import (
-	"burrowfs/config"
+	"burrowfs/core/config"
 	"errors"
 	"log"
 

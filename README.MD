@@ -40,6 +40,9 @@ Moreover, as this list is used to name minor changes and due to the fact that it
       1. Integrate API logic with WebDAV layer
    4. Events
       1. Handle certain S3 Events
+   5. Other
+      1. Error Handling
+      2. Logging
 
 3. AWS
    1. Lambda

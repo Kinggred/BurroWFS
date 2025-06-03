@@ -15,3 +15,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Healthcheck endpoint
  - .env support
  - basic DB connection file structure
+ - JSON to struct data parser
+ - auth endpoints to create and authorize user

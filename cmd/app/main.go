@@ -2,7 +2,7 @@ package main
 
 import (
 	"burrowfs/api/routes"
-	"burrowfs/config"
+	"burrowfs/core/config"
 	"log"
 	"net/http"
 
@@ -14,6 +14,7 @@ func main() {
 	router := chi.NewRouter()
 
 	router.Mount("/status", routes.StatusRoutes())
+	router.Mount("/auth", routes.AuthRoutes())
 
 	log.Println("Listening on :8080")
 	err := http.ListenAndServe(":8080", router)

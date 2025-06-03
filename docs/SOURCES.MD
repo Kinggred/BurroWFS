@@ -15,3 +15,7 @@ Docker:
 https://docs.docker.com/compose/ - Docker compose docs
 https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/ - Docker file docs
 https://dev.to/sadeedpv/creating-a-dockerfile-for-your-go-backend-20n5 - Dockerfile with GO 
+
+API:
+https://thedevelopercafe.com/articles/restful-routing-with-chi-in-go-d05a2f952b3d
+https://gowebexamples.com/password-hashing/

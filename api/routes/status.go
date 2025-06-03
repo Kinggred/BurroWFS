@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"burrowfs/config"
+	"burrowfs/core/config"
 	"encoding/json"
 	"net/http"
 	"strconv"

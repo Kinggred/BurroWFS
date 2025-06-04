@@ -7,11 +7,16 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	builtInMiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
 	config.LoadVariables()
 	router := chi.NewRouter()
+
+	router.Use(builtInMiddleware.Logger)
+	router.Use(builtInMiddleware.RealIP)
+	router.Use(builtInMiddleware.Timeout(60 * 10))
 
 	router.Mount("/status", routes.StatusRoutes())
 	router.Mount("/auth", routes.AuthRoutes())

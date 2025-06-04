@@ -6,7 +6,10 @@ import (
 	"net/http"
 )
 
-func ParseBody(r *http.Request, v interface{}) {
+func ParseBody(r *http.Request, v interface{}) error {
+	/*
+		This function parses body from JSON into a provided schema.
+	*/
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -18,13 +21,12 @@ func ParseBody(r *http.Request, v interface{}) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		panic(err)
-		// Error Handling 422
+		return err
 	}
 
 	err = json.Unmarshal(body, v)
 	if err != nil {
-		panic(err)
-		// Error handling 422
+		return err
 	}
+	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/utils"
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -18,54 +17,53 @@ func AuthRoutes() http.Handler {
 	router.Post("/register", func(w http.ResponseWriter, r *http.Request) {
 		dbConn, err := db.Open()
 		if err != nil {
-			// Handle
-			panic(err)
+			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
+			return
 		}
 		defer dbConn.Close()
-		var body schemas.RegisterSchema
-		common.ParseBody(r, &body)
 
-		_, err = models.CreateUser(r.Context(), dbConn, body.Email, body.Password, body.Name)
+		var body schemas.RegisterSchema
+		err = common.ParseBody(r, &body)
 		if err != nil {
-			// Handle
-			panic(err)
+			common.HttpError(w, http.StatusUnprocessableEntity, "Bad data provided")
+			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		return
+		userId, err := models.CreateUser(r.Context(), dbConn, body.Email, body.Password, body.Name)
+		if err != nil {
+			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
+			return
+		}
+
+		common.StandardizedResponse(w, http.StatusOK, userId)
 	})
 
 	router.Get("/self", func(w http.ResponseWriter, r *http.Request) {
 		var body schemas.RegisterSchema
-		common.ParseBody(r, &body)
+		err := common.ParseBody(r, &body)
+		if err != nil {
+			common.HttpError(w, http.StatusUnprocessableEntity, "Bad data provided")
+			return
+		}
 
 		dbConn, err := db.Open()
 		if err != nil {
-			// TODO: Handle
-			panic(err)
+			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
+			return
 		}
 		defer dbConn.Close()
 		user, err := models.GetUserByEmail(r.Context(), dbConn, body.Email)
-		if err != nil {
-			panic(err)
+		if err != nil || user == nil {
+			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
+			return
 		}
 
 		if !utils.CheckPassword(body.Password, user.Password) {
-			w.WriteHeader(http.StatusUnauthorized)
+			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
 
-		usrStr, err := json.Marshal(user)
-		if err != nil {
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, err = w.Write(usrStr)
-		if err != nil {
-			return
-		}
+		common.StandardizedResponse(w, http.StatusOK, user)
 	})
 
 	return router

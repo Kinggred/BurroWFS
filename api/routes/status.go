@@ -1,10 +1,12 @@
 package routes
 
 import (
+	"burrowfs/api/common"
+	"burrowfs/api/schemas"
 	"burrowfs/core/config"
-	"encoding/json"
+	"burrowfs/core/db"
 	"net/http"
-	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -13,17 +15,22 @@ func StatusRoutes() http.Handler {
 	router := chi.NewRouter()
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		response := map[string]string{
-			"status": "ok",
-			"debug":  strconv.FormatBool(config.CONFIG.Debug),
+		dbConn, _ := db.Open()
+		defer dbConn.Close()
+
+		dbStatus := "ok"
+		if dbConn == nil {
+			dbStatus = "error"
 		}
 
-		err := json.NewEncoder(w).Encode(response)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		response := schemas.StatusSchema{
+			Status:   "ok",
+			Database: dbStatus,
+			Time:     time.DateTime,
+			Debug:    config.CONFIG.Debug,
 		}
+
+		common.StandardizedResponse(w, http.StatusOK, response)
 	})
 
 	return router

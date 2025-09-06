@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WebDAV compatibility for Digest Authentication
 - Implemented `/users/me` returning currently logged-in user
 - Customized logging middleware and created custom logger
+- Implemented basics for webdav support
 
 ## [0.1.0]
 ### [Internal]

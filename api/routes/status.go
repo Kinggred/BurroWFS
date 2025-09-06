@@ -30,7 +30,7 @@ func StatusRoutes() http.Handler {
 			Debug:    config.CONFIG.Debug,
 		}
 
-		common.StandardizedResponse(w, http.StatusOK, response)
+		common.RestResponse(w, http.StatusOK, response)
 	})
 
 	return router

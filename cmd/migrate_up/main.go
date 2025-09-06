@@ -14,7 +14,7 @@ func main() {
 	config.LoadVariables()
 
 	log.Println(config.CONFIG.PostgresDSN)
-	m, err := migrate.New("file://db/migrate", config.CONFIG.PostgresDSN)
+	m, err := migrate.New("file://core/db/migrate", config.CONFIG.PostgresDSN)
 	if err != nil {
 		log.Fatal(err)
 	}

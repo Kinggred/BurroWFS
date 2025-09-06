@@ -22,8 +22,10 @@ type User struct {
 	IsEnabled  bool       `db:"is_enabled"`
 }
 
-func CreateUser(ctx context.Context, db *database.DB, email, password, name string) (uuid.UUID, error) {
-	pwdHash, err := utils.HashPassword(password)
+func CreateUser(db *database.DB, email, password, name string) (uuid.UUID, error) {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	pwdHash, err := utils.EncodePassword(password)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -36,11 +38,13 @@ func CreateUser(ctx context.Context, db *database.DB, email, password, name stri
 	}
 
 	var id uuid.UUID
-	err = db.Pool.QueryRow(ctx, sql, args...).Scan(&id)
+	err = db.Pool.QueryRow(dbCtx, sql, args...).Scan(&id)
 	return id, err
 }
 
-func GetUserByEmail(ctx context.Context, db *database.DB, email string) (*User, error) {
+func GetUserByEmail(db *database.DB, email string) (*User, error) {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	query := db.Builder.Select("*").From("users").Where(squirrel.Eq{"email": email})
 
 	sql, args, err := query.ToSql()
@@ -49,7 +53,7 @@ func GetUserByEmail(ctx context.Context, db *database.DB, email string) (*User, 
 	}
 
 	var user User
-	err = db.Pool.QueryRow(ctx, sql, args...).Scan(
+	err = db.Pool.QueryRow(dbCtx, sql, args...).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Password,
@@ -62,7 +66,9 @@ func GetUserByEmail(ctx context.Context, db *database.DB, email string) (*User, 
 	return &user, err
 }
 
-func DeleteUser(ctx context.Context, db *database.DB, id uuid.UUID) uuid.UUID {
+func DeleteUser(db *database.DB, id uuid.UUID) uuid.UUID {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	query := db.Builder.Delete("users").Where(squirrel.Eq{"id": id})
 
 	sql, args, err := query.ToSql()
@@ -71,6 +77,6 @@ func DeleteUser(ctx context.Context, db *database.DB, id uuid.UUID) uuid.UUID {
 		return uuid.Nil
 	}
 
-	_, err = db.Pool.Exec(ctx, sql, args...)
+	_, err = db.Pool.Exec(dbCtx, sql, args...)
 	return id
 }

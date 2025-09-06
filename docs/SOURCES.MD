@@ -19,3 +19,8 @@ https://dev.to/sadeedpv/creating-a-dockerfile-for-your-go-backend-20n5 - Dockerf
 API:
 https://thedevelopercafe.com/articles/restful-routing-with-chi-in-go-d05a2f952b3d
 https://gowebexamples.com/password-hashing/
+
+Auth:
+http://www.dariuszrorat.ugu.pl/blog/wpis/31-basic-authentication-i-digest-authentication-porownanie-oraz-analiza-bezpieczenstwa
+https://netbe.pl/sha256-niezawodny-algorytm-hashujacy/
+https://www.geeksforgeeks.org/what-is-the-md5-algorithm/

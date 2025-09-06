@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### [Added]
+- Digest Authentication middleware implementation (RFC 2069)
+- WebDAV compatibility for Digest Authentication
+- Implemented `/users/me` returning currently logged in user
+
+## [0.1.0]
 ### [Internal]
 - Local deployment docker-compose
 

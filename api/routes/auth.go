@@ -5,7 +5,6 @@ import (
 	"burrowfs/api/schemas"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
-	"burrowfs/core/utils"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"

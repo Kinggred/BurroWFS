@@ -34,7 +34,7 @@ func AuthRoutes() http.Handler {
 			return
 		}
 
-		common.StandardizedResponse(w, http.StatusOK, userId)
+		common.RestResponse(w, http.StatusOK, userId)
 	})
 
 	return router

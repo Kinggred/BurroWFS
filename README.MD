@@ -37,7 +37,8 @@ Moreover, as this list is used to name minor changes and due to the fact that it
       2. Logic of file upload
       3. Logic of file download
    3. WebDAV
-      1. Integrate API logic with WebDAV layer
+      1. Basic WebDAV support
+      2. Integrate API logic with WebDAV layer
    4. Events
       1. Handle certain S3 Events
    5. Other

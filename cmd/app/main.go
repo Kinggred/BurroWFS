@@ -5,8 +5,8 @@ import (
 	"burrowfs/api/routes"
 	"burrowfs/core/config"
 	"burrowfs/core/logging"
+	"burrowfs/core/webdav"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +15,9 @@ import (
 
 func main() {
 	config.LoadVariables()
+	logging.Init()
+	registerWebDAVMethods()
+
 	logger := logging.Get("main")
 	router := chi.NewRouter()
 
@@ -25,12 +28,22 @@ func main() {
 	router.Mount("/status", routes.StatusRoutes())
 	router.Mount("/auth", routes.AuthRoutes())
 	router.Mount("/user", middleware.DigestAuthMiddleware(routes.UserRoutes()))
+	router.Mount("/files", middleware.DigestAuthMiddleware(routes.FilesRoutes()))
 
 	logger.Info("listening on port: " + config.CONFIG.Port)
 	logger.Debug("Debug mode is enabled")
 	err := http.ListenAndServe(fmt.Sprintf(":%s", config.CONFIG.Port), router)
 	if err != nil {
-		log.Fatal(err)
-		return
+		logger.Fatal("[*] " + err.Error())
 	}
+}
+
+func registerWebDAVMethods() {
+	chi.RegisterMethod(webdav.PROPFIND)
+	chi.RegisterMethod(webdav.MKCOL)
+	chi.RegisterMethod(webdav.COPY)
+	chi.RegisterMethod(webdav.MOVE)
+	chi.RegisterMethod(webdav.LOCK)
+	chi.RegisterMethod(webdav.UNLOCK)
+	chi.RegisterMethod(webdav.PROPPATCH)
 }

@@ -55,9 +55,6 @@ func Init() {
 }
 
 func Get(module string) *Logger {
-	if defaultLogger == nil {
-		Init()
-	}
 	return &Logger{
 		module:     module,
 		level:      globalLevel,

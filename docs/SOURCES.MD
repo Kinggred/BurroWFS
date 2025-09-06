@@ -24,3 +24,6 @@ Auth:
 http://www.dariuszrorat.ugu.pl/blog/wpis/31-basic-authentication-i-digest-authentication-porownanie-oraz-analiza-bezpieczenstwa
 https://netbe.pl/sha256-niezawodny-algorytm-hashujacy/
 https://www.geeksforgeeks.org/what-is-the-md5-algorithm/
+
+WebDav:
+https://http.dev/webdav

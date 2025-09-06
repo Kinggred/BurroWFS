@@ -38,33 +38,5 @@ func AuthRoutes() http.Handler {
 		common.StandardizedResponse(w, http.StatusOK, userId)
 	})
 
-	router.Get("/self", func(w http.ResponseWriter, r *http.Request) {
-		var body schemas.RegisterSchema
-		err := common.ParseBody(r, &body)
-		if err != nil {
-			common.HttpError(w, http.StatusUnprocessableEntity, "Bad data provided")
-			return
-		}
-
-		dbConn, err := db.Open()
-		if err != nil {
-			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
-			return
-		}
-		defer dbConn.Close()
-		user, err := models.GetUserByEmail(r.Context(), dbConn, body.Email)
-		if err != nil || user == nil {
-			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
-			return
-		}
-
-		if !utils.CheckPassword(body.Password, user.Password) {
-			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
-			return
-		}
-
-		common.StandardizedResponse(w, http.StatusOK, user)
-	})
-
 	return router
 }

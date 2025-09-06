@@ -21,11 +21,11 @@ const (
 )
 
 var levelNames = map[LogLevel]string{
-	DEBUG: "DEBUG",
-	INFO:  "INFO",
-	WARN:  "WARN",
-	ERROR: "ERROR",
-	FATAL: "FATAL",
+	DEBUG: "\033[36mDEBUG\033[0m", // Cyan
+	INFO:  "\033[32mINFO\033[0m",  // Green
+	WARN:  "\033[33mWARN\033[0m",  // Yellow
+	ERROR: "\033[31mERROR\033[0m", // Red
+	FATAL: "\033[35mFATAL\033[0m", // Magenta
 }
 
 type Logger struct {

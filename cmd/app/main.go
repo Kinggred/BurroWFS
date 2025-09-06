@@ -1,6 +1,7 @@
 package main
 
 import (
+	"burrowfs/api/middleware"
 	"burrowfs/api/routes"
 	"burrowfs/core/config"
 	"log"
@@ -20,6 +21,7 @@ func main() {
 
 	router.Mount("/status", routes.StatusRoutes())
 	router.Mount("/auth", routes.AuthRoutes())
+	router.Mount("/user", middleware.DigestAuthMiddleware(routes.UserRoutes()))
 
 	log.Println("Listening on :8080")
 	err := http.ListenAndServe(":8080", router)

@@ -29,7 +29,7 @@ func AuthRoutes() http.Handler {
 			return
 		}
 
-		userId, err := models.CreateUser(r.Context(), dbConn, body.Email, body.Password, body.Name)
+		userId, err := models.CreateUser(dbConn, body.Email, body.Password, body.Name)
 		if err != nil {
 			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
 			return

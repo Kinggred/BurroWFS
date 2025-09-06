@@ -4,6 +4,8 @@ import (
 	"burrowfs/api/middleware"
 	"burrowfs/api/routes"
 	"burrowfs/core/config"
+	"burrowfs/core/logging"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -13,9 +15,10 @@ import (
 
 func main() {
 	config.LoadVariables()
+	logger := logging.Get("main")
 	router := chi.NewRouter()
 
-	router.Use(builtInMiddleware.Logger)
+	router.Use(middleware.RequestLoggerMiddleware)
 	router.Use(builtInMiddleware.RealIP)
 	router.Use(builtInMiddleware.Timeout(60 * 10))
 
@@ -23,8 +26,9 @@ func main() {
 	router.Mount("/auth", routes.AuthRoutes())
 	router.Mount("/user", middleware.DigestAuthMiddleware(routes.UserRoutes()))
 
-	log.Println("Listening on :8080")
-	err := http.ListenAndServe(":8080", router)
+	logger.Info("listening on port: " + config.CONFIG.Port)
+	logger.Debug("Debug mode is enabled")
+	err := http.ListenAndServe(fmt.Sprintf(":%s", config.CONFIG.Port), router)
 	if err != nil {
 		log.Fatal(err)
 		return

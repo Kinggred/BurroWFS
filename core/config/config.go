@@ -11,6 +11,7 @@ import (
 )
 
 type Config struct {
+	Port             string `env:"PORT" envDefault:"8080"`
 	Debug            bool   `env:"DEBUG" envDefault:"false"`
 	Secret           string `env:"SECRET,required"`
 	PostgresHost     string `env:"POSTGRES_HOST,required"`

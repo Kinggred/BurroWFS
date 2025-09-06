@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### [Added]
 - Digest Authentication middleware implementation (RFC 2069)
 - WebDAV compatibility for Digest Authentication
-- Implemented `/users/me` returning currently logged in user
+- Implemented `/users/me` returning currently logged-in user
+- Customized logging middleware and created custom logger
 
 ## [0.1.0]
 ### [Internal]

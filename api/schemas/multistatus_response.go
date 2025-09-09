@@ -34,7 +34,7 @@ func rootCollectionObjectWriter(xw *xmlwriter.XMLWriter, davNS *xmlwriter.NS) er
 	return err
 }
 
-func resourceObjectWriter(xw *xmlwriter.XMLWriter, davNS *xmlwriter.NS, resource webdav.FileResponse) error {
+func resourceObjectWriter(xw *xmlwriter.XMLWriter, davNS *xmlwriter.NS, resource webdav.ResourceSchema) error {
 	err := xw.Start(davNS, "response")
 
 	err = xw.Start(davNS, "href")
@@ -45,20 +45,20 @@ func resourceObjectWriter(xw *xmlwriter.XMLWriter, davNS *xmlwriter.NS, resource
 	err = xw.Start(davNS, "prop")
 
 	err = xw.Start(davNS, "displayname")
-	err = xw.Text(false, resource.PropStat.Prop.DisplayName)
+	err = xw.Text(false, resource.DisplayName)
 	err = xw.End(false)
 
-	if !resource.PropStat.Prop.ResourceType {
+	if !resource.IsCollection {
 		err = xw.Start(davNS, "getcontentlength")
-		err = xw.Text(false, strconv.FormatInt(resource.PropStat.Prop.ContentLength, 10))
+		err = xw.Text(false, strconv.FormatInt(resource.ContentLength, 10))
 		err = xw.End(false)
 		err = xw.Start(davNS, "getcontenttype")
-		err = xw.Text(false, resource.PropStat.Prop.ContentType)
+		err = xw.Text(false, resource.ContentType)
 		err = xw.End(false)
 	}
 
 	err = xw.Start(davNS, "resourcetype")
-	if resource.PropStat.Prop.ResourceType {
+	if resource.IsCollection {
 		err = xw.Start(davNS, "collection")
 		err = xw.End(true)
 		err = xw.End(false)
@@ -67,12 +67,12 @@ func resourceObjectWriter(xw *xmlwriter.XMLWriter, davNS *xmlwriter.NS, resource
 	}
 
 	err = xw.Start(davNS, "getlastmodified")
-	err = xw.Text(false, resource.PropStat.Prop.LastModified)
+	err = xw.Text(false, resource.LastModified)
 	err = xw.End(false)
 	err = xw.End(false)
 
 	err = xw.Start(davNS, "status")
-	err = xw.Text(false, resource.PropStat.Status)
+	err = xw.Text(false, resource.Status)
 	err = xw.End(false)
 
 	err = xw.End(false)
@@ -80,7 +80,7 @@ func resourceObjectWriter(xw *xmlwriter.XMLWriter, davNS *xmlwriter.NS, resource
 	return err
 }
 
-func MultistatusWebDavResponse(w http.ResponseWriter, response []webdav.FileResponse, fromRoot bool) {
+func MultistatusWebDavResponse(w http.ResponseWriter, response webdav.MultistatusSchema, fromRoot bool) {
 	logger := logging.Get("xmlResponse")
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(207)
@@ -96,7 +96,7 @@ func MultistatusWebDavResponse(w http.ResponseWriter, response []webdav.FileResp
 	if fromRoot {
 		err = rootCollectionObjectWriter(xw, &davNS)
 	}
-	for _, resource := range response {
+	for _, resource := range response.Responses {
 		err = resourceObjectWriter(xw, &davNS, resource)
 	}
 

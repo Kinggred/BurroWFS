@@ -53,7 +53,7 @@ Moreover, as this list is used to name minor changes and due to the fact that it
       2. Deploy suitable Lambda with code
       3. Setup GitHub action to release
    2. Postgres
-      1. Setup serverless Postgress instance
+      1. Setup serverless Postgres instance
       2. Setup migrations
    3. S3
       1. Setup S3 instance

@@ -1,4 +1,4 @@
-package webdav
+package handlers
 
 import (
 	"burrowfs/api/schemas/rest"
@@ -24,7 +24,7 @@ func createFile(user rest.UserResponse, filepath string, fileData []byte, pathPa
 		OwnerID:      user.Id,
 		PathParentID: pathParentId,
 		ContentType:  "text/yaml", // TODO: Detect content type
-		Name:         ExtractFileName(filepath),
+		Name:         filepath,
 		Path:         filepath,
 		S3Key:        fmt.Sprintf("/%s/%s/%d", user.Id, fileId, fileVersion),
 		Size:         int64(len(fileData)),
@@ -34,40 +34,6 @@ func createFile(user rest.UserResponse, filepath string, fileData []byte, pathPa
 		LockInfo:     "{}", // Figure out later
 	}
 	return &newFile
-}
-
-func HandlePropfind(r *http.Request) ([]models.File, error) {
-	depth := r.Header.Get("Depth")
-	path := r.URL.Path
-	path = strings.TrimPrefix(path, "/files") // TODO: Configurable base path
-	if path[len(path)-1] == '/' {
-		path = strings.TrimSuffix(path, "/")
-	}
-	if path == "" {
-		path = "/"
-	}
-	dbConn, err := db.Open()
-	defer dbConn.Close()
-	if err != nil {
-		logging.Get("webdav/propfind").Error("Failed to connect to database: ", err)
-		return nil, err
-	}
-
-	var logger = logging.Get("webdav/propfind")
-	user, err := utils.RetrieveUser(r.Context())
-	if err != nil {
-		logger.Error("Failed to retrieve user from context: ", err)
-		return nil, err
-	}
-	logger.Info("PROPFIND request for user: ", user)
-
-	files, err := models.GetUserFiles(dbConn, user.Id, path, depth)
-	if err != nil {
-		logger.Error("Failed to retrieve user files: ", err)
-		return nil, err
-	}
-
-	return files, nil
 }
 
 func HandlePut(r *http.Request) (*models.File, error) {
@@ -141,7 +107,7 @@ func HandlePut(r *http.Request) (*models.File, error) {
 			logger.Info("Created folder structure for path: ", filepath)
 			return resources[len(resources)-1], nil // Return the actual file
 		}
-		newFile := createFile(user, filepath, fileData, pathParentID) // pathParentID nil for root
+		newFile := createFile(user, filepath, fileData, pathParentID)
 		fileId, err := models.CreateFile(dbConn, newFile)
 		if err != nil {
 			logger.Error("Failed to create new file record: ", err)

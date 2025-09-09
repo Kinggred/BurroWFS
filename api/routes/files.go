@@ -2,10 +2,11 @@ package routes
 
 import (
 	"burrowfs/api/common"
-	"burrowfs/api/mappers"
-	webdav2 "burrowfs/api/schemas"
+	"burrowfs/api/schemas"
+	"burrowfs/api/schemas/webdav"
 	"burrowfs/core/logging"
-	"burrowfs/core/webdav"
+	methods "burrowfs/core/webdav"
+	"burrowfs/core/webdav/handlers"
 	"net/http"
 	"strings"
 
@@ -17,36 +18,36 @@ func FilesRoutes() http.Handler {
 	router := chi.NewRouter()
 
 	router.Options("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		webdav2.RestResponse(w, http.StatusOK, "OK")
+		schemas.RestResponse(w, http.StatusOK, "OK")
 	}))
 
-	router.Method(webdav.PROPFIND, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		files, err := webdav.HandlePropfind(r)
+	router.Method(methods.PROPFIND, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		files, err := handlers.HandlePropfind(r)
 		if err != nil {
 			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
 			return
 		}
 
-		response := mappers.FilesToWebDAVResponses(files)
+		response := webdav.ParseFilesToMultistatus(files)
 
 		fromRoot := strings.TrimPrefix(r.URL.Path, "/files") == "/"
 
-		webdav2.MultistatusWebDavResponse(w, response, fromRoot)
+		schemas.MultistatusWebDavResponse(w, response, fromRoot)
 	}))
 
 	router.Method(http.MethodPut, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		file, err := webdav.HandlePut(r)
+		file, err := handlers.HandlePut(r)
 		if err != nil {
 			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
 			return
 		}
 		logger.Debug("PUT response: %+v", file)
 
-		webdav2.RestResponse(w, http.StatusCreated, file)
+		schemas.RestResponse(w, http.StatusCreated, file)
 	}))
 
-	router.Method(webdav.MKCOL, "/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		webdav2.RestResponse(w, http.StatusNotImplemented, "MKCOL not implemented yet")
+	router.Method(methods.MKCOL, "/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		schemas.RestResponse(w, http.StatusNotImplemented, "MKCOL not implemented yet")
 	}))
 
 	return router

@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"burrowfs/api/common"
 	"burrowfs/api/schemas"
+	"burrowfs/api/schemas/rest"
 	"burrowfs/core/config"
 	"burrowfs/core/db"
 	"net/http"
@@ -23,14 +23,14 @@ func StatusRoutes() http.Handler {
 			dbStatus = "error"
 		}
 
-		response := schemas.StatusSchema{
+		response := rest.StatusSchema{
 			Status:   "ok",
 			Database: dbStatus,
 			Time:     time.DateTime,
 			Debug:    config.CONFIG.Debug,
 		}
 
-		common.RestResponse(w, http.StatusOK, response)
+		schemas.RestResponse(w, http.StatusOK, response)
 	})
 
 	return router

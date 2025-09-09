@@ -1,4 +1,4 @@
-package schemas
+package rest
 
 type AuthorizeSchema struct {
 	Email    string `json:"email"`

@@ -39,6 +39,8 @@ Moreover, as this list is used to name minor changes and due to the fact that it
    3. WebDAV
       1. Basic WebDAV support
       2. Integrate API logic with WebDAV layer
+      3. Minimal implementation to connect with file explorers
+      4. Retrieving files and polishing putting files
    4. Events
       1. Handle certain S3 Events
    5. Other

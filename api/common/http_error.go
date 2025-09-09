@@ -1,7 +1,7 @@
 package common
 
 import (
-	"burrowfs/api/schemas"
+	"burrowfs/api/schemas/rest"
 	"encoding/json"
 	"net/http"
 )
@@ -10,7 +10,7 @@ func HttpError(w http.ResponseWriter, code int, detail string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 
-	response := schemas.ErrorSchema{
+	response := rest.ErrorSchema{
 		Status: code,
 		Detail: detail,
 	}

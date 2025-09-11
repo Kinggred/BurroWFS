@@ -3,6 +3,7 @@ package routes
 import (
 	"burrowfs/api/common"
 	"burrowfs/api/schemas"
+	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"net/http"
@@ -21,7 +22,7 @@ func AuthRoutes() http.Handler {
 		}
 		defer dbConn.Close()
 
-		var body schemas.RegisterSchema
+		var body rest.RegisterSchema
 		err = common.ParseBody(r, &body)
 		if err != nil {
 			common.HttpError(w, http.StatusUnprocessableEntity, "Bad data provided")
@@ -34,7 +35,7 @@ func AuthRoutes() http.Handler {
 			return
 		}
 
-		common.RestResponse(w, http.StatusOK, userId)
+		schemas.RestResponse(w, http.StatusOK, userId)
 	})
 
 	return router

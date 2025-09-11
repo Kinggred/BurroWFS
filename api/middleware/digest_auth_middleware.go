@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"burrowfs/api/common"
-	"burrowfs/api/schemas"
+	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/utils"
@@ -82,22 +82,22 @@ func ParseDigestHeader(authHeader string) map[string]string {
 	return digestFields
 }
 
-func extractUserFromAuthHeader(digestFields map[string]string) schemas.UserResponse {
+func extractUserFromAuthHeader(digestFields map[string]string) rest.UserResponse {
 	username := digestFields["username"]
 
 	doConn, err := db.Open()
 	defer doConn.Close()
 	if err != nil {
-		return schemas.UserResponse{}
+		return rest.UserResponse{}
 	}
 
 	user, err := models.GetUserByEmail(doConn, username)
 	if err != nil || user == nil {
-		return schemas.UserResponse{}
+		return rest.UserResponse{}
 	}
 
-	return schemas.UserResponse{
-		UserId:    user.ID.String(),
+	return rest.UserResponse{
+		Id:        user.ID,
 		Name:      user.Name,
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt.Format(time.RFC3339),
@@ -180,7 +180,7 @@ func DigestAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		currentUser := extractUserFromAuthHeader(digestFields)
-		if currentUser.UserId == "" {
+		if currentUser == (rest.UserResponse{}) {
 			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}

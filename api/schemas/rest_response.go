@@ -1,6 +1,7 @@
-package common
+package schemas
 
 import (
+	"burrowfs/api/common"
 	"encoding/json"
 	"net/http"
 )
@@ -11,13 +12,13 @@ func RestResponse(w http.ResponseWriter, status int, data interface{}) {
 
 	schemaStr, err := json.Marshal(data)
 	if err != nil {
-		HttpError(w, http.StatusInternalServerError, "Internal server error")
+		common.HttpError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
 	_, err = w.Write(schemaStr)
 	if err != nil {
-		HttpError(w, http.StatusInternalServerError, "Internal server error")
+		common.HttpError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 

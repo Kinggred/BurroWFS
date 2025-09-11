@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
+// HandlePropfind processes a PROPFIND request and retrieves the list of files for the user.
 func HandlePropfind(r *http.Request) ([]models.File, error) {
 	depth := r.Header.Get("Depth")
 	path := r.URL.Path
-	path = strings.TrimPrefix(path, "/files") // TODO: Configurable base path
 	if path[len(path)-1] == '/' {
 		path = strings.TrimSuffix(path, "/")
 	}

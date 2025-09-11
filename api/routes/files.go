@@ -8,13 +8,12 @@ import (
 	methods "burrowfs/core/webdav"
 	"burrowfs/core/webdav/handlers"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
 
 func FilesRoutes() http.Handler {
-	logger := logging.Get("webdav/files")
+	logger := logging.Get("webdav/router")
 	router := chi.NewRouter()
 
 	router.Options("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,8 +29,7 @@ func FilesRoutes() http.Handler {
 
 		response := webdav.ParseFilesToMultistatus(files)
 
-		fromRoot := strings.TrimPrefix(r.URL.Path, "/files") == "/"
-
+		fromRoot := r.URL.Path == "/"
 		schemas.MultistatusWebDavResponse(w, response, fromRoot)
 	}))
 

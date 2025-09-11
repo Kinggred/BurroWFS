@@ -110,7 +110,6 @@ func CreateBatch(db *db.DB, files []*File) ([]uuid.UUID, error) {
 // If startingPath is "/", it retrieves from the root.
 // If startingPath is not found, it returns an empty list.
 func GetUserFiles(db *db.DB, ownerID uuid.UUID, startingPath string, depth string) ([]File, error) {
-	startingPath = "/files" + startingPath
 	logger := logging.Get("GETUserFiles")
 	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

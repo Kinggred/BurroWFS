@@ -36,6 +36,7 @@ func createFile(user rest.UserResponse, filepath string, fileData []byte, pathPa
 	return &newFile
 }
 
+// HandlePut processes a PUT request to upload or update a file.
 func HandlePut(r *http.Request) (*models.File, error) {
 	var logger = logging.Get("webdav/put")
 	user, err := utils.RetrieveUser(r.Context())
@@ -70,7 +71,7 @@ func HandlePut(r *http.Request) (*models.File, error) {
 		if len(fileRoute) > 1 {
 			var resources []*models.File
 			for depth, filename := range fileRoute {
-				if filename == "files" {
+				if filename == "" {
 					continue
 				}
 				logger.Debug(fmt.Sprintf("Depth %d: %s", depth, filename))

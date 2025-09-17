@@ -30,8 +30,12 @@ type ResourceSchema struct {
 }
 
 func ParseFileToResponse(file models.File) ResourceSchema {
+	href := file.Path
+	if file.FileID == nil && href[len(href)-1] != '/' {
+		href += "/"
+	}
 	return ResourceSchema{
-		Href:          file.Path,
+		Href:          href,
 		DisplayName:   file.Name,
 		IsCollection:  file.FileID == nil,
 		LastModified:  file.UpdatedAt.Format(time.RFC1123),

@@ -37,6 +37,8 @@ func createFile(user rest.UserResponse, filepath string, fileData []byte, pathPa
 }
 
 // HandlePut processes a PUT request to upload or update a file.
+// It should not create folders leading to put, those should be created with MKCOL
+// but if folders do not exist, it will create them automatically, for now
 func HandlePut(r *http.Request) (*models.File, error) {
 	var logger = logging.Get("webdav/put")
 	user, err := utils.RetrieveUser(r.Context())
@@ -122,6 +124,7 @@ func HandlePut(r *http.Request) (*models.File, error) {
 	} else {
 		// File exists, update logic can be implemented here
 		logger.Info("File already exists with ID: ", file.FileID)
+		logger.Error("NOT IMPLEMENTED")
 		return &models.File{}, nil
 	}
 }

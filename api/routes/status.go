@@ -30,7 +30,7 @@ func StatusRoutes() http.Handler {
 			Debug:    config.CONFIG.Debug,
 		}
 
-		schemas.RestResponse(w, http.StatusOK, response)
+		schemas.JSONResponse(w, http.StatusOK, response)
 	})
 
 	return router

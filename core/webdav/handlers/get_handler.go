@@ -1,48 +1,63 @@
 package handlers
 
 import (
-	"burrowfs/api/common"
-	schemas "burrowfs/api/schemas/webdav"
+	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
 	"burrowfs/core/utils"
+	"errors"
 	"net/http"
+
+	"github.com/jackc/pgx/v5"
 )
 
-func HandleGet(w http.ResponseWriter, r *http.Request) *schemas.FileResponse {
+// CombinedResponses holds the possible responses for a GET request.
+// It hat to contain a File metadata and either raw Data or a redirect Address.
+type CombinedResponses struct {
+	File    *models.File
+	Data    *[]byte
+	Address string
+}
+
+func (c *CombinedResponses) IsEmpty() bool {
+	return c.File == nil && c.Data == nil && c.Address == ""
+}
+
+func (c *CombinedResponses) ReturnAsRedirect() bool {
+	return c.Address != ""
+}
+
+func NewCombinedResponses(file *models.File, data *[]byte, address string) *CombinedResponses {
+	return &CombinedResponses{
+		File:    file,
+		Data:    data,
+		Address: address,
+	}
+}
+
+// HandleGet processes a GET request to retrieve a file's metadata and content.
+func HandleGet(user *rest.UserResponse, path *utils.Path) (status int, combinedResponse *CombinedResponses) {
 	logger := logging.Get("handlers/get")
 	dbConn, err := db.Open()
 	defer dbConn.Close()
 	if err != nil {
-		common.HttpError(w, 500, "Error")
-		logger.Debug(err.Error())
-		return nil
-	}
-	filePath := r.URL.Path
-	user, err := utils.RetrieveUser(r.Context())
-	if err != nil {
-		common.HttpError(w, 401, "Auth error")
-		logger.Debug(err.Error())
-		return nil
+		logger.Error(err.Error())
+		return http.StatusInternalServerError, nil
 	}
 
-	file, err := models.GetFileByPath(dbConn, user.Id, filePath)
+	file, err := models.GetFileByPath(dbConn, user.Id, path.Clean)
 	if err != nil {
-		common.HttpError(w, 404, "Not Found")
-		logger.Debug(err.Error())
-		return nil
+		if errors.Is(err, pgx.ErrNoRows) {
+			return http.StatusNotFound, nil
+		} else {
+			logger.Error(err.Error())
+			return http.StatusInternalServerError, nil
+		}
 	}
-
-	// Placeholder
-	data := []byte(`
-	some:
-		ymltest
-`)
 
 	// TODO: AWS S3 Integration
+	placeholderData := []byte("File content placeholder")
 
-	fileResponse := schemas.NewFileResponse(file.ContentType, file.ETag, file.Size, file.UpdatedAt, "", data)
-	fileResponse.Size = int64(len(data))
-	return &fileResponse
+	return http.StatusOK, NewCombinedResponses(file, &placeholderData, "")
 }

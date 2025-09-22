@@ -1,18 +1,19 @@
 package handlers
 
 import (
+	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
 	"burrowfs/core/utils"
 	"errors"
-	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
-func HandleMove(w http.ResponseWriter, r *http.Request) int {
+// HandleMove processes a MOVE request to move or rename a file or directory.
+func HandleMove(user *rest.UserResponse, currentPath *utils.Path, newPath *utils.Path, overwrite bool) int {
 	logger := logging.Get("handlers/move")
 	dbConn, err := db.Open()
 	defer dbConn.Close()
@@ -21,16 +22,6 @@ func HandleMove(w http.ResponseWriter, r *http.Request) int {
 		return 500
 	}
 
-	user, err := utils.RetrieveUser(r.Context())
-	if err != nil {
-		logger.Debug(err.Error())
-		return 401
-	}
-
-	destination := r.Header.Get("Destination")
-	currentPath := utils.RetrievePath(r.URL.Path, true)
-	newPath := utils.RetrievePath(destination, false)
-	overwrite := r.Header.Get("Overwrite") == "T"
 	var newPathParentId *uuid.UUID = nil
 
 	if currentPath.Clean == newPath.Clean {

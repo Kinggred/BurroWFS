@@ -5,8 +5,10 @@ import (
 	"burrowfs/api/schemas"
 	"burrowfs/api/schemas/webdav"
 	"burrowfs/core/logging"
+	"burrowfs/core/utils"
 	methods "burrowfs/core/webdav"
 	"burrowfs/core/webdav/handlers"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -21,7 +23,17 @@ func FilesRoutes() http.Handler {
 	}))
 
 	router.Method(methods.PROPFIND, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		files, err := handlers.HandlePropfind(r)
+		user, err := utils.RetrieveUser(r.Context())
+		if err != nil {
+			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
+		path := utils.RetrievePath(r.URL.Path, true)
+		depth := r.Header.Get("Depth")
+		if depth == "" {
+			depth = "infinite"
+		}
+		files, err := handlers.HandlePropfind(&user, path, depth)
 		if err != nil {
 			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
 			return
@@ -34,24 +46,64 @@ func FilesRoutes() http.Handler {
 	}))
 
 	router.Method(http.MethodPut, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		file, err := handlers.HandlePut(r)
+		user, err := utils.RetrieveUser(r.Context())
 		if err != nil {
-			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
+			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
-		logger.Debug("PUT response: %+v", file)
 
-		schemas.JSONResponse(w, http.StatusCreated, file)
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			common.HttpError(w, http.StatusInternalServerError, "Error reading file data")
+			logger.Debug(err.Error())
+			return
+		}
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				logger.Error(err.Error())
+			}
+		}(r.Body)
+
+		newPath := utils.RetrievePath(r.URL.Path, true)
+		logger.Debug("PUT request for path: " + newPath.Clean + " by user: " + user.Name)
+
+		status := handlers.HandlePut(&user, newPath, &data)
+
+		if status != http.StatusCreated && status != http.StatusOK {
+			common.HttpError(w, status, http.StatusText(status))
+			return
+		}
+
 	}))
 
 	router.Method(methods.MKCOL, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		status, path := handlers.HandleMkcol(w, r)
+		newPath := utils.RetrievePath(r.URL.Path, true)
+		user, err := utils.RetrieveUser(r.Context())
+		if err != nil {
+			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
+		status, path := handlers.HandleMkcol(user, newPath)
 
 		schemas.MkcolWebDavResponse(w, status, path)
 	}))
 
 	router.Method(methods.MOVE, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		status := handlers.HandleMove(w, r)
+		user, err := utils.RetrieveUser(r.Context())
+		if err != nil {
+			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
+		destination := r.Header.Get("Destination")
+		if destination == "" {
+			common.HttpError(w, http.StatusBadRequest, "Destination header is required")
+			return
+		}
+		currentPath := utils.RetrievePath(r.URL.Path, true)
+		newPath := utils.RetrievePath(destination, false)
+		overwrite := r.Header.Get("Overwrite") == "T"
+		status := handlers.HandleMove(&user, currentPath, newPath, overwrite)
 		if status != 201 && status != 204 {
 			common.HttpError(w, status, http.StatusText(status))
 			return
@@ -60,16 +112,42 @@ func FilesRoutes() http.Handler {
 	}))
 
 	router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		file := handlers.HandleGet(w, r)
-		if file == nil {
-			common.HttpError(w, 404, "File not Found")
+		user, err := utils.RetrieveUser(r.Context())
+		if err != nil {
+			common.HttpError(w, 401, "Auth error")
+			logger.Debug(err.Error())
 			return
 		}
-		code := 200
-		if file.Redirect {
-			code = 307
+		path := utils.RetrievePath(r.URL.Path, true)
+
+		status, combined := handlers.HandleGet(&user, path)
+
+		if status != 200 {
+			common.HttpError(w, status, http.StatusText(status))
+			return
 		}
-		schemas.FileWebDavResponse(w, code, file)
+
+		if combined == nil || combined.IsEmpty() {
+			common.HttpError(w, 500, "Internal server error")
+			logger.Error("Combined response is nil or empty")
+			return
+		}
+
+		if combined.ReturnAsRedirect() {
+			http.Redirect(w, r, combined.Address, http.StatusTemporaryRedirect)
+			return
+		}
+
+		file := combined.File
+		data := combined.Data
+		if file == nil || data == nil {
+			common.HttpError(w, 500, "Internal server error")
+			logger.Error("File or data in combined response is nil")
+			return
+		}
+
+		response := webdav.NewFileResponse(combined)
+		schemas.FileWebDavResponse(w, status, &response)
 	})
 
 	return router

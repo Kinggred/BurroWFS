@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"os"
@@ -10,13 +11,17 @@ import (
 )
 
 type Config struct {
+	Port             string `env:"PORT" envDefault:"80"`
+	APIPrefix        string `env:"API_PREFIX" envDefault:"/api"`
 	Debug            bool   `env:"DEBUG" envDefault:"false"`
+	Secret           string `env:"SECRET,required"`
 	PostgresHost     string `env:"POSTGRES_HOST,required"`
-	PostgresPort     int    `env:"POSTGRES_PORT" envDefault:"5432"`
+	PostgresPort     int    `env:"POSTGRES_PORT" envDefault:"6432"`
 	PostgresUser     string `env:"POSTGRES_USER,required"`
 	PostgresPassword string `env:"POSTGRES_PASSWORD,required"`
 	PostgresDB       string `env:"POSTGRES_DB,required"`
 	PostgresDSN      string `env:"POSTGRES_DSN" envDefault:""`
+	HashedSecret     []byte
 }
 
 var CONFIG Config
@@ -41,6 +46,8 @@ func LoadVariables() {
 			CONFIG.PostgresDB,
 		)
 	}
+
+	CONFIG.HashedSecret = hashSecret(CONFIG.Secret)
 }
 
 func getEnvFile(filePath string) string {
@@ -67,4 +74,9 @@ func buildPostgresDSN(user, password, host string, port int, dbname string) stri
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		user, password, host, port, dbname,
 	)
+}
+
+func hashSecret(secret string) []byte {
+	encodedSecret := sha256.Sum256([]byte(secret))
+	return encodedSecret[:16]
 }

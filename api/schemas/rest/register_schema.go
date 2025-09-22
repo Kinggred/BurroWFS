@@ -1,4 +1,4 @@
-package schemas
+package rest
 
 type RegisterSchema struct {
 	Email    string `json:"email"`

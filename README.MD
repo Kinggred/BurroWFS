@@ -37,7 +37,11 @@ Moreover, as this list is used to name minor changes and due to the fact that it
       2. Logic of file upload
       3. Logic of file download
    3. WebDAV
-      1. Integrate API logic with WebDAV layer
+      1. Basic WebDAV support
+      2. Integrate API logic with WebDAV layer
+      3. Minimal implementation to connect with file explorers
+      4. Retrieving files and polishing putting files
+      5. Create collections and move files around
    4. Events
       1. Handle certain S3 Events
    5. Other
@@ -50,7 +54,7 @@ Moreover, as this list is used to name minor changes and due to the fact that it
       2. Deploy suitable Lambda with code
       3. Setup GitHub action to release
    2. Postgres
-      1. Setup serverless Postgress instance
+      1. Setup serverless Postgres instance
       2. Setup migrations
    3. S3
       1. Setup S3 instance

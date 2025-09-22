@@ -1,4 +1,4 @@
-package schemas
+package rest
 
 type StatusSchema struct {
 	Status   string `json:"status"`

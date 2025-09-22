@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented `/users/me` returning currently logged-in user
 - Customized logging middleware and created custom logger
 - Implemented basics for webdav support
+- Implemented basic file operations: list files, create directory, upload file, download file, delete file
 
 ## [0.1.0]
 ### [Internal]

@@ -6,44 +6,18 @@ import (
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
 	"burrowfs/core/utils"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
-// createFile creates a new file record
-func createFile(user rest.UserResponse, filepath string, fileData []byte, pathParentId *uuid.UUID) *models.File {
-	fileId := uuid.New()
-	fileVersion := 1
-	newFile := models.File{
-		ID:           uuid.New(),
-		FileID:       &fileId,
-		OwnerID:      user.Id,
-		PathParentID: pathParentId,
-		ContentType:  "text/yaml", // TODO: Detect content type
-		Name:         filepath,
-		Path:         filepath,
-		S3Key:        fmt.Sprintf("/%s/%s/%d", user.Id, fileId, fileVersion),
-		Size:         int64(len(fileData)),
-		ETag:         "", // To be generated after S3 upload
-		Version:      fileVersion,
-		Permissions:  "{}", // Default permissions
-		LockInfo:     "{}", // Figure out later
-	}
-	return &newFile
-}
-
 // HandlePut processes a PUT request to upload or update a file.
-func HandlePut(r *http.Request) (*models.File, error) {
+func HandlePut(user *rest.UserResponse, newPath *utils.Path, data *[]byte) int {
+	fileSize := int64(len(*data))
 	var logger = logging.Get("webdav/put")
-	user, err := utils.RetrieveUser(r.Context())
-	if err != nil {
-		logger.Error("Failed to retrieve user from context: ", err)
-		return &models.File{}, err
-	}
 	logger.Info("PUT request for user: ", user)
 
 	dbConn, err := db.Open()
@@ -52,76 +26,66 @@ func HandlePut(r *http.Request) (*models.File, error) {
 		logger.Error("Failed to connect to database: ", err)
 	}
 
-	// TODO: File content waits for S3 integration
-	fileData, err := io.ReadAll(r.Body)
-	if err != nil {
-		logger.Error("Failed to read request body: ", err)
-		return &models.File{}, err
+	// Limit file size to 10MB for now
+	if fileSize > 10*1024*1024 {
+		logger.Info("File size exceeds limit")
+		return http.StatusRequestEntityTooLarge
 	}
-	logger.Debug(string(fileData))
 
-	filepath := r.URL.Path
-	logger.Debug("File path: ", filepath)
-	file, _ := models.GetFileByPath(dbConn, user.Id, filepath)
+	// TODO: File content waits for S3 integration
+	//	logger.Error("Failed to read request body: ", err)
+	var pathParentID *uuid.UUID = nil
+	var newFile models.File
+
+	file, err := models.GetFileByPath(dbConn, user.Id, newPath.Clean)
+	if err == nil {
+	} else if errors.Is(err, pgx.ErrNoRows) {
+		if newPath.ParentPath != "/" {
+			dirParent, err := models.GetFileByPath(dbConn, user.Id, newPath.ParentPath)
+			if err != nil {
+				logger.Error("Parent folder not found: ", err)
+				return http.StatusConflict
+			}
+			pathParentID = &dirParent.ID
+		} else {
+			pathParentID = nil
+		}
+	} else {
+		logger.Error("Failed to check existing file: ", err)
+		return http.StatusInternalServerError
+	}
 
 	if file == nil {
-		var pathParentID *uuid.UUID = nil
-
-		fileRoute := strings.Split(filepath, "/")[1:]
-		if len(fileRoute) > 1 {
-			var resources []*models.File
-			for depth, filename := range fileRoute {
-				if filename == "" {
-					continue
-				}
-				logger.Debug(fmt.Sprintf("Depth %d: %s", depth, filename))
-				if len(fileRoute)-1 == depth {
-					resources = append(resources, createFile(user, filepath, fileData, pathParentID))
-					break
-				}
-				// Everything except the last segment is a folder
-				folderPath := "/" + strings.Join(fileRoute[:depth+1], "/")
-				existingFolder, _ := models.GetFileByPath(dbConn, user.Id, folderPath) // TODO: File tree check can optimize DB queries, this will do for now
-				folderID := uuid.New()
-				if existingFolder == nil {
-					folder := models.File{
-						ID:           folderID,
-						OwnerID:      user.Id,
-						PathParentID: pathParentID,
-						Name:         filename,
-						Path:         folderPath,
-						LockInfo:     "{}", // Figure out later
-						Permissions:  "{}", // Default permissions
-					}
-					resources = append(resources, &folder)
-					pathParentID = &folderID
-				}
-				if existingFolder != nil {
-					pathParentID = &existingFolder.ID
-				}
-			}
-			_, err := models.CreateBatch(dbConn, resources)
-			if err != nil {
-				logger.Error("Failed to create folder structure: ", err)
-				return &models.File{}, err
-			}
-			logger.Info("Created folder structure for path: ", filepath)
-			return resources[len(resources)-1], nil // Return the actual file
+		fileId := uuid.New()
+		fileVersion := 1
+		newFile = models.File{
+			ID:           uuid.New(),
+			FileID:       &fileId,
+			OwnerID:      user.Id,
+			PathParentID: pathParentID,
+			ContentType:  "text/yaml", // TODO: Detect content type
+			Name:         newFile.Name,
+			Path:         newPath.Clean,
+			S3Key:        fmt.Sprintf("/%s/%s/%d", user.Id, fileId, fileVersion),
+			Size:         fileSize,
+			ETag:         "", // To be generated after S3 upload
+			Version:      fileVersion,
+			Permissions:  "{}", // Default permissions
+			LockInfo:     "{}", // Figure out later
 		}
-		newFile := createFile(user, filepath, fileData, pathParentID)
-		fileId, err := models.CreateFile(dbConn, newFile)
+		_, err = models.CreateFile(dbConn, &newFile)
 		if err != nil {
 			logger.Error("Failed to create new file record: ", err)
-			return &models.File{}, err
+			return http.StatusInternalServerError
 		}
-		logger.Info("Created new file with ID: ", fileId)
-		// File upload to S3 can be handled asynchronously
-		// go uploadToS3(newFile.S3Key, fileData)
-		return newFile, nil
-
+		logger.Info("Created new file: ", newFile.Path)
+		return http.StatusCreated
 	} else {
-		// File exists, update logic can be implemented here
-		logger.Info("File already exists with ID: ", file.FileID)
-		return &models.File{}, nil
+		logger.Error("File versioning not implemented yet")
+		return http.StatusInternalServerError
+		//newVersion := file.Version + 1
+		// Update existing file record with new version
+		// create a method saving previous version
 	}
+
 }

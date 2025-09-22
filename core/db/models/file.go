@@ -3,12 +3,15 @@ package models
 import (
 	"burrowfs/core/db"
 	"burrowfs/core/logging"
+	"burrowfs/core/utils"
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type File struct {
@@ -30,11 +33,8 @@ type File struct {
 	LockInfo        string     `db:"lock_info" json:"lock_info"`     // JSON string for now
 }
 
-func nullableUUID(u uuid.UUID) interface{} {
-	if u == uuid.Nil {
-		return nil
-	}
-	return u
+func (f File) String() string {
+	return fmt.Sprintf("fileName: %s, filePath: %s", f.Name, f.Path)
 }
 
 func CreateFile(db *db.DB, file *File) (uuid.UUID, error) {
@@ -99,6 +99,92 @@ func CreateBatch(db *db.DB, files []*File) ([]uuid.UUID, error) {
 	}
 
 	return ids, nil
+}
+
+// RecursiveFileSearch performs a recursive search for files and folders starting from a given path.
+// If startDeeper is true, it starts from the parent of starting path; otherwise, it includes the starting path itself.
+// If startingPath is "/", it retrieves all files and folders for the user.
+// If startingPath is not found, it returns an empty list.
+func RecursiveFileSearch(db *db.DB, ownerID uuid.UUID, startingPath string, startDeeper bool) ([]File, error) {
+	logger := logging.Get("RecursiveFileSearch")
+	logger.Debug("Starting recursive file search")
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	query := ""
+
+	var startingPathParentID *uuid.UUID = nil
+	var startingFile *File
+	var err error
+	if startingPath != "/" {
+		startingFile, err = GetFileByPath(db, ownerID, startingPath)
+		if err != nil || startingFile == nil {
+			logger.Debug("Starting path not found: " + startingPath)
+			return nil, nil
+		}
+		if startDeeper {
+			startingPathParentID = startingFile.PathParentID
+		} else {
+			startingPathParentID = &startingFile.ID
+		}
+	}
+	logger.Debug(fmt.Sprintf("Starting from file: %v, startingPathParentID: %s, startingFileID: %s", startingFile, startingPathParentID, startingFile.ID.String()))
+
+	query = `
+			WITH RECURSIVE file_tree AS (
+    		SELECT *, ARRAY[id] AS path_ids
+    		FROM files WHERE owner_id = $1 AND id = $2
+    		UNION ALL
+
+    		SELECT f.*, ft.path_ids || f.id
+    		FROM files f JOIN file_tree ft ON f.path_parent_id = ft.id
+    		WHERE f.owner_id = $1
+			)
+			SELECT id, file_id, version_parent_id, owner_id, path_parent_id,
+    		name, path, s3_key, size, content_type, etag, version,
+    		created_at, updated_at, permissions, lock_info 
+			FROM file_tree
+			ORDER BY
+    		path_ids,                  -- ensures parent-first traversal
+    		(file_id IS NOT NULL) ASC;
+			`
+
+	rows, err := db.Pool.Query(dbCtx, query, ownerID, startingPathParentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var files []File
+	for rows.Next() {
+		var file File
+		err := rows.Scan(
+			&file.ID,
+			&file.FileID,
+			&file.VersionParentID,
+			&file.OwnerID,
+			&file.PathParentID,
+			&file.Name,
+			&file.Path,
+			&file.S3Key,
+			&file.Size,
+			&file.ContentType,
+			&file.ETag,
+			&file.Version,
+			&file.CreatedAt,
+			&file.UpdatedAt,
+			&file.Permissions,
+			&file.LockInfo,
+		)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+	}
+
+	for index, file := range files {
+		logger.Debug(fmt.Sprintf("%d: %v", index, file))
+	}
+	return files, nil
 }
 
 // GetUserFiles retrieves files and folders for a user starting from a given path.
@@ -244,13 +330,13 @@ func GetFileByID(db *db.DB, id uuid.UUID) (*File, error) {
 		&file.Path,
 		&file.S3Key,
 		&file.Size,
+		&file.ContentType,
 		&file.ETag,
 		&file.Version,
 		&file.CreatedAt,
 		&file.UpdatedAt,
 		&file.Permissions,
 		&file.LockInfo,
-		&file.ContentType,
 	)
 	if err != nil {
 		return nil, err
@@ -285,13 +371,13 @@ func GetFileByPath(db *db.DB, ownerID uuid.UUID, path string) (*File, error) {
 		&file.Path,
 		&file.S3Key,
 		&file.Size,
+		&file.ContentType,
 		&file.ETag,
 		&file.Version,
 		&file.CreatedAt,
 		&file.UpdatedAt,
 		&file.Permissions,
 		&file.LockInfo,
-		&file.ContentType,
 	)
 	if err != nil {
 		return nil, err
@@ -327,6 +413,60 @@ func UpdateFile(db *db.DB, file *File) error {
 	return err
 }
 
+func BatchUpdateFiles(db *db.DB, files []File) error {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	logger := logging.Get("BatchUpdateFiles")
+	logger.Debug(fmt.Sprintf("BatchUpdateFiles called with %d files", len(files)))
+
+	if len(files) == 0 {
+		return nil
+	}
+
+	tx, err := db.Pool.Begin(dbCtx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(dbCtx)
+
+	batch := &pgx.Batch{}
+	for _, file := range files {
+		sql, args, err := db.Builder.
+			Update("files").
+			Set("path", file.Path).
+			Set("path_parent_id", file.PathParentID).
+			Set("updated_at", file.UpdatedAt).
+			Where(squirrel.Eq{"id": file.ID}).
+			ToSql()
+		if err != nil {
+			return err
+		}
+		batch.Queue(sql, args...)
+		logger.Debug(fmt.Sprintf("Updating file: %v", file))
+	}
+
+	if batch.Len() == 0 {
+		return tx.Commit(dbCtx) // Nothing to do
+	}
+
+	br := tx.SendBatch(dbCtx, batch)
+	for range files {
+		if _, err := br.Exec(); err != nil {
+			err := br.Close()
+			if err != nil {
+				return err
+			}
+			return err
+		}
+	}
+	if err := br.Close(); err != nil {
+		return err
+	}
+
+	return tx.Commit(dbCtx)
+}
+
 // UpdateFilePartial updates only specified fields of a file record by its ID.
 func UpdateFilePartial(db *db.DB, id string, updates map[string]interface{}) error {
 	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -353,11 +493,113 @@ func UpdateFilePartial(db *db.DB, id string, updates map[string]interface{}) err
 	return err
 }
 
-func DeleteFile(db *db.DB, id string) error {
+func MoveFile(db *db.DB, ownerID uuid.UUID, oldPath *utils.Path, newPath *utils.Path, newPathParent *File) error {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var newPathParentID *uuid.UUID = nil
+	if newPathParent != nil {
+		newPathParentID = &newPathParent.ID
+	}
+
+	query := db.Builder.Update("files").
+		Set("path", newPath.Clean).Set("path_parent_id", newPathParentID).
+		Where(squirrel.Eq{"owner_id": ownerID, "path": oldPath.Clean})
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Pool.Exec(dbCtx, sql, args...)
+
+	return err
+}
+
+func MoveDirectory(db *db.DB, ownerID uuid.UUID, oldPath *utils.Path, newPathRoot *utils.Path, newPathParentID *uuid.UUID) error {
+	logger := logging.Get("MoveDirectory")
+	logger.Info("Moving directory from ", oldPath.Clean, " to ", newPathRoot.Clean)
+
+	// Get all files and folders under the oldPath
+	filesToMove, err := RecursiveFileSearch(db, ownerID, oldPath.Clean, false)
+	if err != nil {
+		return err
+	}
+
+	var filesToUpdate []File
+	logger.Debug(fmt.Sprintf("Found %d files to move", len(filesToMove)))
+
+	for index, file := range filesToMove {
+		logger.Debug(fmt.Sprintf("Processing file %d: %v", index, file))
+		if index == 0 {
+			// Update the root directory itself
+			file.PathParentID = newPathParentID
+		}
+		file.Path = strings.Replace(file.Path, oldPath.Clean, newPathRoot.Clean, 1)
+		filesToUpdate = append(filesToUpdate, file)
+	}
+	err = BatchUpdateFiles(db, filesToUpdate)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteDirectory(db *db.DB, ownerID uuid.UUID, directoryToDelete *File) ([]uuid.UUID, error) {
+	filesToDelete, err := RecursiveFileSearch(db, ownerID, directoryToDelete.Path, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var deletedIDs []uuid.UUID
+	for _, file := range filesToDelete {
+		deletedIDs = append(deletedIDs, file.ID)
+	}
+
+	err = DeleteFilesByIDs(db, deletedIDs)
+	if err != nil {
+		return nil, err
+	}
+	return deletedIDs, nil
+}
+
+func DeleteFileByID(db *db.DB, id uuid.UUID) error {
 	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	query := db.Builder.Delete("files").Where(squirrel.Eq{"id": id})
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Pool.Exec(dbCtx, sql, args...)
+	return err
+}
+
+func DeleteFilesByIDs(db *db.DB, ids []uuid.UUID) error {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if len(ids) == 0 {
+		return nil
+	}
+
+	query := db.Builder.Delete("files").Where(squirrel.Eq{"id": ids})
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Pool.Exec(dbCtx, sql, args...)
+	return err
+}
+
+func DeleteFileByPath(db *db.DB, ownerID uuid.UUID, path *utils.Path) error {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := db.Builder.Delete("files").Where(squirrel.Eq{"owner_id": ownerID, "path": path.Clean})
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return err

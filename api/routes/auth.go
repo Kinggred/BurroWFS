@@ -35,7 +35,7 @@ func AuthRoutes() http.Handler {
 			return
 		}
 
-		schemas.RestResponse(w, http.StatusOK, userId)
+		schemas.JSONResponse(w, http.StatusOK, userId)
 	})
 
 	return router

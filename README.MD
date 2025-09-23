@@ -59,3 +59,4 @@ Moreover, as this list is used to name minor changes and due to the fact that it
    3. S3
       1. Setup S3 instance
       2. Setup Events
+      3. Setup Bucket integration

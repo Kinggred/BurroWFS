@@ -52,12 +52,6 @@ func FilesRoutes() http.Handler {
 			return
 		}
 
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			common.HttpError(w, http.StatusInternalServerError, "Error reading file data")
-			logger.Debug(err.Error())
-			return
-		}
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
@@ -68,7 +62,7 @@ func FilesRoutes() http.Handler {
 		newPath := utils.RetrievePath(r.URL.Path, true)
 		logger.Debug("PUT request for path: " + newPath.Clean + " by user: " + user.Name)
 
-		status := handlers.HandlePut(&user, newPath, &data)
+		status := handlers.HandlePut(&user, newPath, r.Body)
 
 		if status != http.StatusCreated && status != http.StatusOK {
 			common.HttpError(w, status, http.StatusText(status))

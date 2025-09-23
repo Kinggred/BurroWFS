@@ -21,7 +21,15 @@ type Config struct {
 	PostgresPassword string `env:"POSTGRES_PASSWORD,required"`
 	PostgresDB       string `env:"POSTGRES_DB,required"`
 	PostgresDSN      string `env:"POSTGRES_DSN" envDefault:""`
-	HashedSecret     []byte
+
+	// AWS S3 Configuration
+	AWSRegion          string `env:"AWS_REGION" envDefault:"us-east-1"`
+	AWSBucket          string `env:"AWS_BUCKET,required"`
+	AWSAccessKeyID     string `env:"AWS_ACCESS_KEY_ID,required"`
+	AWSSecretAccessKey string `env:"AWS_SECRET_ACCESS_KEY,required"`
+
+	// Computed values
+	HashedSecret []byte
 }
 
 var CONFIG Config

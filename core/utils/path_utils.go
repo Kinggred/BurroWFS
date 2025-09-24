@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"net/url"
 	"strings"
 )
 
@@ -23,9 +24,9 @@ func RetrievePath(raw string, isUri bool) *Path {
 	path.raw = raw
 
 	if !isUri {
-		path.uri = "/" + strings.Join(strings.Split(raw, "/")[3:], "/")
+		path.uri = "/" + strings.Join(path.splitAndEncode(raw, "/")[3:], "/")
 	}
-	path.Clean = strings.TrimSuffix(path.uri, "/")
+	path.Clean = strings.Join(path.splitAndEncode(strings.TrimSuffix(path.uri, "/"), "/"), "/")
 
 	splitPath := strings.Split(path.Clean, "/")
 	if len(splitPath) == 2 {
@@ -55,4 +56,12 @@ func (p *Path) IsParentRoot() bool {
 		return true
 	}
 	return false
+}
+
+func (p *Path) splitAndEncode(raw string, sep string) []string {
+	parts := strings.Split(raw, sep)
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return parts
 }

@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"burrowfs/api/schemas/rest"
+	"burrowfs/core/aws"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
 	"burrowfs/core/utils"
+	"context"
 	"errors"
 	"net/http"
 
@@ -37,7 +39,7 @@ func NewCombinedResponses(file *models.File, data *[]byte, address string) *Comb
 }
 
 // HandleGet processes a GET request to retrieve a file's metadata and content.
-func HandleGet(user *rest.UserResponse, path *utils.Path) (status int, combinedResponse *CombinedResponses) {
+func HandleGet(ctx context.Context, user *rest.UserResponse, path *utils.Path) (status int, combinedResponse *CombinedResponses) {
 	logger := logging.Get("handlers/get")
 	dbConn, err := db.Open()
 	defer dbConn.Close()
@@ -56,8 +58,20 @@ func HandleGet(user *rest.UserResponse, path *utils.Path) (status int, combinedR
 		}
 	}
 
-	// TODO: AWS S3 Integration
-	placeholderData := []byte("File content placeholder")
+	combinedResponse = NewCombinedResponses(file, nil, "")
+	if true {
+		combinedResponse.Address, err = aws.GetFileURL(ctx, file.S3Key)
+		if err != nil {
+			logger.Error("Failed to get S3 file URL: ", err)
+			return http.StatusInternalServerError, nil
+		}
+	} else {
+		//combinedResponse.Data, err = aws.GetFileData(ctx, file.S3Key)
+		//if err != nil {
+		//	logger.Error("Failed to get S3 file: ", err)
+		//	return http.StatusInternalServerError, nil
+		//}
+	}
 
-	return http.StatusOK, NewCombinedResponses(file, &placeholderData, "")
+	return http.StatusOK, combinedResponse
 }

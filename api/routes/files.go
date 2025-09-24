@@ -62,7 +62,7 @@ func FilesRoutes() http.Handler {
 		newPath := utils.RetrievePath(r.URL.Path, true)
 		logger.Debug("PUT request for path: " + newPath.Clean + " by user: " + user.Name)
 
-		status := handlers.HandlePut(&user, newPath, r.Body)
+		status := handlers.HandlePut(r.Context(), &user, newPath, r.Body)
 
 		if status != http.StatusCreated && status != http.StatusOK {
 			common.HttpError(w, status, http.StatusText(status))
@@ -114,7 +114,7 @@ func FilesRoutes() http.Handler {
 		}
 		path := utils.RetrievePath(r.URL.Path, true)
 
-		status, combined := handlers.HandleGet(&user, path)
+		status, combined := handlers.HandleGet(r.Context(), &user, path)
 
 		if status != 200 {
 			common.HttpError(w, status, http.StatusText(status))

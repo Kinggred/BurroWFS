@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-func multiPartUpload(s3Client *s3.Client, file *models.File, data io.Reader) (string, error) {
+func multiPartUpload(ctx context.Context, s3Client *s3.Client, file *models.File, data io.Reader) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -31,7 +31,7 @@ func multiPartUpload(s3Client *s3.Client, file *models.File, data io.Reader) (st
 
 	uploadID := createResp.UploadId
 	var completedParts []types.CompletedPart
-	partNumber := int32(1)
+	partNumber := int32(0)
 	buffer := make([]byte, MaxChunkSize)
 
 	for {
@@ -56,7 +56,7 @@ func multiPartUpload(s3Client *s3.Client, file *models.File, data io.Reader) (st
 		uploadPartResp, err := s3Client.UploadPart(ctx, &s3.UploadPartInput{
 			Bucket:     &config.CONFIG.AWSBucket,
 			Key:        &file.S3Key,
-			PartNumber: partNumber,
+			PartNumber: &partNumber,
 			UploadId:   uploadID,
 			Body:       bytes.NewReader(part),
 		})
@@ -75,7 +75,7 @@ func multiPartUpload(s3Client *s3.Client, file *models.File, data io.Reader) (st
 
 		completedParts = append(completedParts, types.CompletedPart{
 			ETag:       uploadPartResp.ETag,
-			PartNumber: partNumber,
+			PartNumber: &partNumber,
 		})
 		partNumber++
 		if err == io.EOF {
@@ -97,16 +97,14 @@ func multiPartUpload(s3Client *s3.Client, file *models.File, data io.Reader) (st
 	return strings.Trim(*output.ETag, strconv.Itoa(int('"'))), nil
 }
 
-func singlePartUpload(s3Client *s3.Client, file *models.File, data io.Reader) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func singlePartUpload(ctx context.Context, s3Client *s3.Client, file *models.File, data io.Reader) (string, error) {
 	settings := config.CONFIG
 	output, err := s3Client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      &settings.AWSBucket,
-		Key:         &file.S3Key,
-		Body:        data,
-		ContentType: &file.ContentType,
+		Bucket:        &settings.AWSBucket,
+		Key:           &file.S3Key,
+		Body:          data,
+		ContentType:   &file.ContentType,
+		ContentLength: &file.Size,
 	})
 	if err != nil {
 		return "", err
@@ -115,15 +113,15 @@ func singlePartUpload(s3Client *s3.Client, file *models.File, data io.Reader) (s
 	return strings.Trim(*output.ETag, strconv.Itoa(int('"'))), nil
 }
 
-func PutFile(file *models.File, data io.Reader) (string, error) {
+func PutFile(ctx context.Context, file *models.File, data io.Reader) (string, error) {
 	s3Client := InitS3()
 	var eTag = ""
 	var err error
 
 	if file.Size <= MaxSingleUploadSize {
-		eTag, err = singlePartUpload(s3Client, file, data)
+		eTag, err = singlePartUpload(ctx, s3Client, file, data)
 	} else if file.Size >= MaxChunkSize {
-		eTag, err = multiPartUpload(s3Client, file, data)
+		eTag, err = multiPartUpload(ctx, s3Client, file, data)
 	}
 	return eTag, err
 }

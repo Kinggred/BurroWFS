@@ -8,6 +8,7 @@ import (
 	"burrowfs/core/webdav"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	builtInMiddleware "github.com/go-chi/chi/v5/middleware"
@@ -23,12 +24,12 @@ func main() {
 
 	router.Use(middleware.RequestLoggerMiddleware)
 	router.Use(builtInMiddleware.RealIP)
-	router.Use(builtInMiddleware.Timeout(60 * 10))
+	router.Use(builtInMiddleware.Timeout(5 * time.Minute))
 
+	router.Mount("/", webdavMiddlewares(routes.FilesRoutes()))
 	router.Mount(pathWithAPIPrefix("/status"), routes.StatusRoutes())
 	router.Mount(pathWithAPIPrefix("/auth"), routes.AuthRoutes())
 	router.Mount(pathWithAPIPrefix("/user"), middleware.DigestAuthMiddleware(routes.UserRoutes()))
-	router.Mount("/", webdavMiddlewares(routes.FilesRoutes()))
 
 	logger.Info("listening on port: " + config.CONFIG.Port)
 	logger.Debug("Debug mode is enabled")

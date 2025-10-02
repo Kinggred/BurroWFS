@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"burrowfs/core/webdav/handlers"
+	"io"
 	"time"
 )
 
@@ -12,7 +13,7 @@ type FileResponse struct {
 	Redirect     bool
 	LastModified string
 	DownloadURL  string
-	Data         []byte
+	Data         io.ReadCloser
 }
 
 func NewFileResponse(responses *handlers.CombinedResponses) FileResponse {
@@ -23,6 +24,6 @@ func NewFileResponse(responses *handlers.CombinedResponses) FileResponse {
 		Redirect:     responses.ReturnAsRedirect(),
 		LastModified: responses.File.UpdatedAt.Format(time.RFC1123),
 		DownloadURL:  responses.Address,
-		Data:         *responses.Data,
+		Data:         responses.Data,
 	}
 }

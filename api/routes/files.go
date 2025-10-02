@@ -4,6 +4,7 @@ import (
 	"burrowfs/api/common"
 	"burrowfs/api/schemas"
 	"burrowfs/api/schemas/webdav"
+	"burrowfs/core/config"
 	"burrowfs/core/logging"
 	"burrowfs/core/utils"
 	methods "burrowfs/core/webdav"
@@ -52,12 +53,6 @@ func FilesRoutes() http.Handler {
 			return
 		}
 
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			common.HttpError(w, http.StatusInternalServerError, "Error reading file data")
-			logger.Debug(err.Error())
-			return
-		}
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
@@ -68,7 +63,7 @@ func FilesRoutes() http.Handler {
 		newPath := utils.RetrievePath(r.URL.Path, true)
 		logger.Debug("PUT request for path: " + newPath.Clean + " by user: " + user.Name)
 
-		status := handlers.HandlePut(&user, newPath, &data)
+		status := handlers.HandlePut(r.Context(), &user, newPath, r.Body)
 
 		if status != http.StatusCreated && status != http.StatusOK {
 			common.HttpError(w, status, http.StatusText(status))
@@ -119,8 +114,10 @@ func FilesRoutes() http.Handler {
 			return
 		}
 		path := utils.RetrievePath(r.URL.Path, true)
+		client := r.Header.Get("User-Agent")
 
-		status, combined := handlers.HandleGet(&user, path)
+		blockRedirect := utils.Contains(config.CONFIG.BlockRedirectList, client) || config.CONFIG.ForceDirect
+		status, combined := handlers.HandleGet(r.Context(), &user, path, blockRedirect)
 
 		if status != 200 {
 			common.HttpError(w, status, http.StatusText(status))
@@ -135,14 +132,6 @@ func FilesRoutes() http.Handler {
 
 		if combined.ReturnAsRedirect() {
 			http.Redirect(w, r, combined.Address, http.StatusTemporaryRedirect)
-			return
-		}
-
-		file := combined.File
-		data := combined.Data
-		if file == nil || data == nil {
-			common.HttpError(w, 500, "Internal server error")
-			logger.Error("File or data in combined response is nil")
 			return
 		}
 

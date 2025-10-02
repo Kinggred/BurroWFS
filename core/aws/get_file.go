@@ -3,17 +3,25 @@ package aws
 import (
 	"burrowfs/core/config"
 	"context"
+	"io"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func GetFileData(ctx context.Context, awsKey string) ([]byte, error) {
+func GetFileStream(ctx context.Context, awsKey string) (io.ReadCloser, error) {
 	s3Client := InitS3()
 	if s3Client == nil {
 		return nil, nil
 	}
-	return nil, nil
+	output, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: &config.CONFIG.AWSBucket,
+		Key:    &awsKey,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return output.Body, nil
 }
 
 func GetFileURL(ctx context.Context, awsKey string) (string, error) {

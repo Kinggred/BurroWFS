@@ -4,6 +4,7 @@ import (
 	"burrowfs/api/common"
 	"burrowfs/api/schemas/webdav"
 	"burrowfs/core/logging"
+	"io"
 	"net/http"
 	"strconv"
 )
@@ -21,7 +22,7 @@ func directFileResponse(w http.ResponseWriter, file *webdav.FileResponse) {
 	w.Header().Set("ETag", file.ETag)
 	w.Header().Set("Last-Modified", file.LastModified)
 	w.Header().Set("Accept-Ranges", "bytes")
-	_, err := w.Write(file.Data)
+	_, err := io.Copy(w, file.Data)
 
 	if err != nil {
 		common.HttpError(w, 500, "Failed writing response")

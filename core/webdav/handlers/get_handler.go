@@ -9,6 +9,7 @@ import (
 	"burrowfs/core/utils"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
@@ -18,7 +19,7 @@ import (
 // It hat to contain a File metadata and either raw Data or a redirect Address.
 type CombinedResponses struct {
 	File    *models.File
-	Data    *[]byte
+	Data    io.ReadCloser
 	Address string
 }
 
@@ -30,7 +31,7 @@ func (c *CombinedResponses) ReturnAsRedirect() bool {
 	return c.Address != ""
 }
 
-func NewCombinedResponses(file *models.File, data *[]byte, address string) *CombinedResponses {
+func NewCombinedResponses(file *models.File, data io.ReadCloser, address string) *CombinedResponses {
 	return &CombinedResponses{
 		File:    file,
 		Data:    data,
@@ -39,7 +40,7 @@ func NewCombinedResponses(file *models.File, data *[]byte, address string) *Comb
 }
 
 // HandleGet processes a GET request to retrieve a file's metadata and content.
-func HandleGet(ctx context.Context, user *rest.UserResponse, path *utils.Path) (status int, combinedResponse *CombinedResponses) {
+func HandleGet(ctx context.Context, user *rest.UserResponse, path *utils.Path, blockRedirect bool) (status int, combinedResponse *CombinedResponses) {
 	logger := logging.Get("handlers/get")
 	dbConn, err := db.Open()
 	defer dbConn.Close()
@@ -59,18 +60,19 @@ func HandleGet(ctx context.Context, user *rest.UserResponse, path *utils.Path) (
 	}
 
 	combinedResponse = NewCombinedResponses(file, nil, "")
-	if true {
+	if blockRedirect {
+		stream, err := aws.GetFileStream(ctx, file.S3Key)
+		if err != nil {
+			logger.Error("Failed to get S3 file stream: ", err)
+			return http.StatusInternalServerError, nil
+		}
+		combinedResponse.Data = stream
+	} else {
 		combinedResponse.Address, err = aws.GetFileURL(ctx, file.S3Key)
 		if err != nil {
 			logger.Error("Failed to get S3 file URL: ", err)
 			return http.StatusInternalServerError, nil
 		}
-	} else {
-		//combinedResponse.Data, err = aws.GetFileData(ctx, file.S3Key)
-		//if err != nil {
-		//	logger.Error("Failed to get S3 file: ", err)
-		//	return http.StatusInternalServerError, nil
-		//}
 	}
 
 	return http.StatusOK, combinedResponse

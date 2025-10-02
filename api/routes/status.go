@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	s4 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -40,13 +40,13 @@ func StatusRoutes() http.Handler {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		s3 := aws.InitS3()
-		if s3 == nil {
+		client := aws.InitS3()
+		if client == nil {
 			schemas.JSONResponse(w, http.StatusOK, []string{})
 			return
 		}
 
-		buckets, err := s3.ListBuckets(ctx, &s4.ListBucketsInput{})
+		buckets, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
 		if err != nil {
 
 			schemas.JSONResponse(w, http.StatusInternalServerError, err.Error())

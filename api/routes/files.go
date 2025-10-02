@@ -4,6 +4,7 @@ import (
 	"burrowfs/api/common"
 	"burrowfs/api/schemas"
 	"burrowfs/api/schemas/webdav"
+	"burrowfs/core/config"
 	"burrowfs/core/logging"
 	"burrowfs/core/utils"
 	methods "burrowfs/core/webdav"
@@ -113,8 +114,10 @@ func FilesRoutes() http.Handler {
 			return
 		}
 		path := utils.RetrievePath(r.URL.Path, true)
+		client := r.Header.Get("User-Agent")
 
-		status, combined := handlers.HandleGet(r.Context(), &user, path)
+		blockRedirect := utils.Contains(config.CONFIG.BlockRedirectList, client) || config.CONFIG.ForceDirect
+		status, combined := handlers.HandleGet(r.Context(), &user, path, blockRedirect)
 
 		if status != 200 {
 			common.HttpError(w, status, http.StatusText(status))
@@ -129,14 +132,6 @@ func FilesRoutes() http.Handler {
 
 		if combined.ReturnAsRedirect() {
 			http.Redirect(w, r, combined.Address, http.StatusTemporaryRedirect)
-			return
-		}
-
-		file := combined.File
-		data := combined.Data
-		if file == nil || data == nil {
-			common.HttpError(w, 500, "Internal server error")
-			logger.Error("File or data in combined response is nil")
 			return
 		}
 

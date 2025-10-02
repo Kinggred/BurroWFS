@@ -33,6 +33,7 @@ func main() {
 
 	logger.Info("listening on port: " + config.CONFIG.Port)
 	logger.Debug("Debug mode is enabled")
+	logger.Debug(fmt.Sprintf("Redirect blocks: %v", config.CONFIG.BlockRedirectList))
 	err := http.ListenAndServe(fmt.Sprintf(":%s", config.CONFIG.Port), router)
 	if err != nil {
 		logger.Fatal("[*] " + err.Error())

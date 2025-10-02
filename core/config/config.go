@@ -22,6 +22,10 @@ type Config struct {
 	PostgresDB       string `env:"POSTGRES_DB,required"`
 	PostgresDSN      string `env:"POSTGRES_DSN" envDefault:""`
 
+	// Redirect Configuration
+	ForceDirect       bool     `env:"FORCE_DIRECT" envDefault:"false"`
+	BlockRedirectList []string `env:"BLOCK_REDIRECT_LIST" envSeparator:"," envDefault:""`
+
 	// AWS S3 Configuration
 	AWSRegion          string `env:"AWS_REGION" envDefault:"us-east-1"`
 	AWSBucket          string `env:"AWS_BUCKET,required"`

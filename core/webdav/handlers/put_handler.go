@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"burrowfs/api/schemas/rest"
 	"burrowfs/core/aws"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
 	"bytes"
 	"context"
 	"errors"
@@ -41,7 +40,7 @@ func getFileMetadata(data io.ReadCloser) (newData io.ReadCloser, mime *mimetype.
 }
 
 // HandlePut processes a PUT request to upload or update a file.
-func HandlePut(ctx context.Context, user *rest.UserResponse, newPath *utils.Path, data io.ReadCloser) int {
+func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Path, data io.ReadCloser) int {
 	var logger = logging.Get("webdav/put")
 	logger.Info("PUT request for user: ", user)
 

@@ -1,17 +1,16 @@
 package handlers
 
 import (
-	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
 
 	"github.com/google/uuid"
 )
 
 // HandleMkcol returns statusCode and file location
-func HandleMkcol(user rest.UserResponse, newPath *utils.Path) (status int, location string) {
+func HandleMkcol(user types.InternalUser, newPath *types.Path) (status int, location string) {
 	logger := logging.Get("webdav/mkcol")
 	dbConn, err := db.Open()
 	defer dbConn.Close()

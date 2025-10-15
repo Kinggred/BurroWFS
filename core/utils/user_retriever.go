@@ -1,18 +1,23 @@
 package utils
 
 import (
-	"burrowfs/api/schemas/rest"
+	"burrowfs/core/types"
 	"context"
 	"errors"
 )
 
-// RetrieveUser extracts the user information from the context.
+// RetrieveUser extracts the user information from the context and converts it to InternalUser.
 // USER INFORMATION IS AVAILABLE ONLY IF THE REQUEST PASSED THROUGH AUTHENTICATION MIDDLEWARE.
-func RetrieveUser(ctx context.Context) (rest.UserResponse, error) {
-	user := ctx.Value("user")
-	if user == nil {
-		return rest.UserResponse{}, errors.New("user not found in context")
+func RetrieveUser(ctx context.Context) (types.InternalUser, error) {
+	userVal := ctx.Value("user")
+	if userVal == nil {
+		return types.InternalUser{}, errors.New("user not found in context")
 	}
 
-	return user.(rest.UserResponse), nil
+	internalUser, ok := userVal.(types.InternalUser)
+	if !ok {
+		return types.InternalUser{}, errors.New("user in context has invalid type")
+	}
+
+	return internalUser, nil
 }

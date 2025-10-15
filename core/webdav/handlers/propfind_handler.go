@@ -1,15 +1,14 @@
 package handlers
 
 import (
-	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
 )
 
 // HandlePropfind processes a PROPFIND request and retrieves the list of files for the user.
-func HandlePropfind(user *rest.UserResponse, path *utils.Path, depth string) ([]models.File, error) {
+func HandlePropfind(user *types.InternalUser, path *types.Path, depth string) ([]models.File, error) {
 	logger := logging.Get("webdav/propfind")
 	dbConn, err := db.Open()
 	defer dbConn.Close()

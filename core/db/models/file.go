@@ -3,7 +3,7 @@ package models
 import (
 	"burrowfs/core/db"
 	"burrowfs/core/logging"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
 	"context"
 	"fmt"
 	"strings"
@@ -493,7 +493,7 @@ func UpdateFilePartial(db *db.DB, id string, updates map[string]interface{}) err
 	return err
 }
 
-func MoveFile(db *db.DB, ownerID uuid.UUID, oldPath *utils.Path, newPath *utils.Path, newPathParent *File) error {
+func MoveFile(db *db.DB, ownerID uuid.UUID, oldPath *types.Path, newPath *types.Path, newPathParent *File) error {
 	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -516,7 +516,7 @@ func MoveFile(db *db.DB, ownerID uuid.UUID, oldPath *utils.Path, newPath *utils.
 	return err
 }
 
-func MoveDirectory(db *db.DB, ownerID uuid.UUID, oldPath *utils.Path, newPathRoot *utils.Path, newPathParentID *uuid.UUID) error {
+func MoveDirectory(db *db.DB, ownerID uuid.UUID, oldPath *types.Path, newPathRoot *types.Path, newPathParentID *uuid.UUID) error {
 	logger := logging.Get("MoveDirectory")
 	logger.Info("Moving directory from ", oldPath.Clean, " to ", newPathRoot.Clean)
 
@@ -595,7 +595,7 @@ func DeleteFilesByIDs(db *db.DB, ids []uuid.UUID) error {
 	return err
 }
 
-func DeleteFileByPath(db *db.DB, ownerID uuid.UUID, path *utils.Path) error {
+func DeleteFileByPath(db *db.DB, ownerID uuid.UUID, path *types.Path) error {
 	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

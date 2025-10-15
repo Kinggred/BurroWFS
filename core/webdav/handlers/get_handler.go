@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"burrowfs/api/schemas/rest"
 	"burrowfs/core/aws"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
 	"context"
 	"errors"
 	"io"
@@ -40,7 +39,7 @@ func NewCombinedResponses(file *models.File, data io.ReadCloser, address string)
 }
 
 // HandleGet processes a GET request to retrieve a file's metadata and content.
-func HandleGet(ctx context.Context, user *rest.UserResponse, path *utils.Path, blockRedirect bool) (status int, combinedResponse *CombinedResponses) {
+func HandleGet(ctx context.Context, user *types.InternalUser, path *types.Path, blockRedirect bool) (status int, combinedResponse *CombinedResponses) {
 	logger := logging.Get("handlers/get")
 	dbConn, err := db.Open()
 	defer dbConn.Close()

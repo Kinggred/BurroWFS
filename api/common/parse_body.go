@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func ParseBody(r *http.Request, v interface{}) error {
+func ParseBody(r *http.Request, v interface{}, validate bool) error {
 	/*
 		This function parses body from JSON into a provided schema.
 	*/
@@ -27,6 +27,20 @@ func ParseBody(r *http.Request, v interface{}) error {
 	err = json.Unmarshal(body, v)
 	if err != nil {
 		return err
+	}
+
+	if validate {
+		err = ValidateStruct(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ValidateStruct(v interface{}) error {
+	if validatable, ok := v.(Validatable); ok {
+		return validatable.Validate()
 	}
 	return nil
 }

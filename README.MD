@@ -47,6 +47,7 @@ Moreover, as this list is used to name minor changes and due to the fact that it
    5. Other
       1. Error Handling
       2. Logging
+      3. Rest API Interface
 
 3. AWS
    1. Lambda

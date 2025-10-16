@@ -1,11 +1,15 @@
 package routes
 
 import (
+	"burrowfs/api/common"
 	"burrowfs/api/schemas"
 	"burrowfs/api/schemas/rest"
 	"burrowfs/core/crud"
 	"burrowfs/core/logging"
+	"burrowfs/core/types"
 	"burrowfs/core/utils"
+	methods "burrowfs/core/webdav"
+	"burrowfs/core/webdav/handlers"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -43,9 +47,14 @@ func FileRoutes() http.Handler {
 			return
 		}
 
-		rest.NewGetResponseSchema(files)
+		fileDTOs := make([]types.FileDTO, 0, len(files))
+		for _, f := range files {
+			fileDTOs = append(fileDTOs, f.ToDTO())
+		}
 
-		schemas.JSONResponse(w, code, files)
+		response := rest.NewGetResponseSchema(fileDTOs)
+
+		schemas.JSONResponse(w, code, response)
 	})
 
 	router.Method(methods.LOCK, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,7 @@ import (
 	"burrowfs/api/schemas/webdav"
 	"burrowfs/core/config"
 	"burrowfs/core/logging"
+	"burrowfs/core/types"
 	"burrowfs/core/utils"
 	methods "burrowfs/core/webdav"
 	"burrowfs/core/webdav/handlers"
@@ -40,7 +41,11 @@ func WebDavRoutes() http.Handler {
 			return
 		}
 
-		response := webdav.ParseFilesToMultistatus(files)
+		fileDTOs := make([]types.FileDTO, 0, len(files))
+		for _, f := range files {
+			fileDTOs = append(fileDTOs, f.ToDTO())
+		}
+		response := webdav.ParseFilesToMultistatus(fileDTOs)
 
 		fromRoot := r.URL.Path == "/"
 		schemas.MultistatusWebDavResponse(w, response, fromRoot)

@@ -30,18 +30,38 @@ type File struct {
 	Version         int        `db:"version" json:"version"`
 	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
-	LockInfo        string     `db:"lock_info" json:"lock_info"`
+	LockInfo        *string    `db:"lock_info" json:"lock_info"`
 }
 
 func (f File) String() string {
 	return fmt.Sprintf("fileName: %s, filePath: %s", f.Name, f.Path)
 }
 
+// ToDTO converts a File model to a FileDTO for use in API or transfer layers.
+func (f File) ToDTO() types.FileDTO {
+	return types.FileDTO{
+		ID:           f.ID,
+		FileID:       f.FileID,
+		OwnerID:      f.OwnerID,
+		PathParentID: f.PathParentID,
+		ContentType:  f.ContentType,
+		Name:         f.Name,
+		Path:         f.Path,
+		S3Key:        f.S3Key,
+		Size:         f.Size,
+		ETag:         f.ETag,
+		Version:      f.Version,
+		CreatedAt:    f.CreatedAt,
+		UpdatedAt:    f.UpdatedAt,
+		LockInfo:     f.LockInfo,
+	}
+}
+
 // IsLocked checks if the file is currently locked based on the LockInfo field.
 // ONLY CHECK BEFORE SETTING A NEW LOCK!
 func (f File) IsLocked() bool {
-	if f.LockInfo != "" {
-		parts := strings.Split(f.LockInfo, "_")
+	if f.LockInfo != nil {
+		parts := strings.Split(*f.LockInfo, "_")
 		if len(parts) != 2 {
 			return true
 		}
@@ -58,7 +78,8 @@ func (f File) IsLocked() bool {
 }
 
 func (f File) SetLock(userID uuid.UUID, lockTimeout time.Duration) {
-	f.LockInfo = fmt.Sprintf("%d_%s", time.Now().Add(lockTimeout).Unix(), userID.String())
+	lockInfo := fmt.Sprintf("%d_%s", time.Now().Add(lockTimeout).Unix(), userID.String())
+	f.LockInfo = &lockInfo
 }
 
 func CreateFile(db *db.DB, file *File) (uuid.UUID, error) {
@@ -165,7 +186,7 @@ func RecursiveFileSearch(db *db.DB, ownerID uuid.UUID, startingPath string, star
 			)
 			SELECT id, file_id, version_parent_id, owner_id, path_parent_id,
     		name, path, s3_key, size, content_type, etag, version,
-    		created_at, updated_at, permissions, lock_info 
+    		created_at, updated_at, lock_info 
 			FROM file_tree
 			ORDER BY
     		path_ids,                  -- ensures parent-first traversal
@@ -286,7 +307,7 @@ func GetUserFiles(db *db.DB, ownerID uuid.UUID, startingPath string, depth strin
 			)
 			SELECT id, file_id, version_parent_id, owner_id, path_parent_id,
     		name, path, s3_key, size, content_type, etag, version,
-    		created_at, updated_at, permissions, lock_info 
+    		created_at, updated_at, lock_info 
 			FROM file_tree
 			ORDER BY
     		path_ids,                  -- ensures parent-first traversal

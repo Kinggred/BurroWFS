@@ -6,26 +6,16 @@ import (
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
-	"burrowfs/core/types"
 	"burrowfs/core/utils"
 	"context"
 	"errors"
-	"io"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func newCombinedResponses(file *models.File, data io.ReadCloser, address string) *types.CombinedResponses {
-	return &types.CombinedResponses{
-		File:    file,
-		Data:    data,
-		Address: address,
-	}
-}
-
 // HandleGet processes a GET request to retrieve a file's metadata and content.
-func HandleGet(ctx context.Context, user *types.InternalUser, path *types.Path, blockRedirect bool) (status int, combinedResponse *CombinedResponses) {
+func HandleGet(ctx context.Context, user *types.InternalUser, path *types.Path, blockRedirect bool) (status int, combinedResponse *types.CombinedResponses) {
 	logger := logging.Get("handlers/get")
 	dbConn, err := db.Open()
 	defer dbConn.Close()
@@ -44,7 +34,8 @@ func HandleGet(ctx context.Context, user *types.InternalUser, path *types.Path, 
 		}
 	}
 
-	combinedResponse = newCombinedResponses(file, nil, "")
+	fileDto := file.ToDTO()
+	combinedResponse = utils.NewCombinedResponses(&fileDto, nil, "")
 	if blockRedirect {
 		stream, err := aws.GetFileStream(ctx, file.S3Key)
 		if err != nil {

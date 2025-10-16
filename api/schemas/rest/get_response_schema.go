@@ -1,6 +1,8 @@
 package rest
 
-import "burrowfs/core/db/models"
+import (
+	"burrowfs/core/types"
+)
 
 type GetResponseSchema struct {
 	Files []FileJsonResponse `json:"files"`
@@ -8,6 +10,7 @@ type GetResponseSchema struct {
 
 type FileJsonResponse struct {
 	Id           string `json:"id"`
+	FileID       string `json:"file_id"`
 	OwnerId      string `json:"owner_id"`
 	PathParentId string `json:"path_parent_id"`
 	ContentType  string `json:"content_type"`
@@ -19,11 +22,18 @@ type FileJsonResponse struct {
 	UpdatedAt    string `json:"updated_at"`
 }
 
-func NewFileJsonResponse(file models.File) FileJsonResponse {
+func NewFileJsonResponse(file types.FileDTO) FileJsonResponse {
+	var pathParentId string
+	if file.PathParentID != nil {
+		pathParentId = file.PathParentID.String()
+	} else {
+		pathParentId = ""
+	}
+
 	return FileJsonResponse{
 		Id:           file.ID.String(),
 		OwnerId:      file.OwnerID.String(),
-		PathParentId: file.PathParentID.String(),
+		PathParentId: pathParentId,
 		ContentType:  file.ContentType,
 		Name:         file.Name,
 		Path:         file.Path,
@@ -34,7 +44,7 @@ func NewFileJsonResponse(file models.File) FileJsonResponse {
 	}
 }
 
-func NewGetResponseSchema(files []models.File) GetResponseSchema {
+func NewGetResponseSchema(files []types.FileDTO) GetResponseSchema {
 	response := GetResponseSchema{}
 	for _, file := range files {
 		fileResponse := NewFileJsonResponse(file)

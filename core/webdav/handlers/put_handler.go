@@ -96,8 +96,6 @@ func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Pat
 			Size:         fileSize,
 			ETag:         "", // To be generated after S3 upload
 			Version:      fileVersion,
-			Permissions:  "{}", // Default permissions
-			LockInfo:     "{}", // Figure out later
 		}
 		logger.Info("Created new file: ", file.Path)
 	} else {

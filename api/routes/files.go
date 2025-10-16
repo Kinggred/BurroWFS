@@ -47,5 +47,34 @@ func FileRoutes() http.Handler {
 
 		schemas.JSONResponse(w, code, files)
 	})
+
+	router.Method(methods.LOCK, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, err := utils.RetrieveUser(r.Context())
+		if err != nil {
+			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
+		path := utils.RetrievePath(r.URL.Path, true)
+		depth := r.Header.Get("Depth")
+		if depth == "" {
+			depth = "infinite"
+		}
+		timeout := r.Header.Get("Timeout")
+		if timeout == "" {
+			timeout = "Infinite"
+		}
+		var lockInfo schemas.LockInfo
+		err = common.ParseXML(r, &lockInfo)
+
+		data := handlers.HandleLock(&user, path, depth, timeout, lockInfo)
+		if err != nil {
+			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
+			return
+		}
+		schemas.JSONResponse(w, data, nil)
+
+		//schemas.LockWebDavResponse(w, http.StatusOK, lockInfo)
+	}))
+
 	return router
 }

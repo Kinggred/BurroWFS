@@ -43,8 +43,6 @@ func HandleMkcol(user types.InternalUser, newPath *types.Path) (status int, loca
 		Name:         newPath.Name,
 		Path:         newPath.Clean,
 		Size:         0,
-		Permissions:  "{}",
-		LockInfo:     "{}",
 	}
 
 	_, err = models.CreateFile(dbConn, &file)

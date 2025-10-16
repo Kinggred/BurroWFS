@@ -2,14 +2,13 @@ package common
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"io"
 	"net/http"
 )
 
-func ParseBody(r *http.Request, v interface{}) error {
-	/*
-		This function parses body from JSON into a provided schema.
-	*/
+// ParseJSON parses the JSON body of an HTTP request into the provided interface.
+func ParseJSON(r *http.Request, v interface{}) error {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -29,4 +28,21 @@ func ParseBody(r *http.Request, v interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func ParseXML(r *http.Request, v interface{}) error {
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(r.Body)
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+
+	err = xml.Unmarshal(body, v)
+	return err
 }

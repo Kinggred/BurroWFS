@@ -6,6 +6,7 @@ import (
 	"burrowfs/core/utils"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,12 +30,35 @@ type File struct {
 	Version         int        `db:"version" json:"version"`
 	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
-	Permissions     string     `db:"permissions" json:"permissions"` // JSON string for now
-	LockInfo        string     `db:"lock_info" json:"lock_info"`     // JSON string for now
+	LockInfo        string     `db:"lock_info" json:"lock_info"`
 }
 
 func (f File) String() string {
 	return fmt.Sprintf("fileName: %s, filePath: %s", f.Name, f.Path)
+}
+
+// IsLocked checks if the file is currently locked based on the LockInfo field.
+// ONLY CHECK BEFORE SETTING A NEW LOCK!
+func (f File) IsLocked() bool {
+	if f.LockInfo != "" {
+		parts := strings.Split(f.LockInfo, "_")
+		if len(parts) != 2 {
+			return true
+		}
+		expiryUnix, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return true
+		}
+		if time.Now().Unix() > expiryUnix {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (f File) SetLock(userID uuid.UUID, lockTimeout time.Duration) {
+	f.LockInfo = fmt.Sprintf("%d_%s", time.Now().Add(lockTimeout).Unix(), userID.String())
 }
 
 func CreateFile(db *db.DB, file *File) (uuid.UUID, error) {
@@ -43,10 +67,10 @@ func CreateFile(db *db.DB, file *File) (uuid.UUID, error) {
 
 	query := db.Builder.Insert("files").
 		Columns(
-			"id", "file_id", "version_parent_id", "owner_id", "path_parent_id", "name", "path", "s3_key", "size", "etag", "version", "created_at", "updated_at", "permissions", "lock_info", "content_type",
+			"id", "file_id", "version_parent_id", "owner_id", "path_parent_id", "name", "path", "s3_key", "size", "etag", "version", "created_at", "updated_at", "lock_info", "content_type",
 		).
 		Values(
-			file.ID, file.FileID, file.VersionParentID, file.OwnerID, file.PathParentID, file.Name, file.Path, file.S3Key, file.Size, file.ETag, file.Version, file.CreatedAt, file.UpdatedAt, file.Permissions, file.LockInfo, file.ContentType,
+			file.ID, file.FileID, file.VersionParentID, file.OwnerID, file.PathParentID, file.Name, file.Path, file.S3Key, file.Size, file.ETag, file.Version, file.CreatedAt, file.UpdatedAt, file.LockInfo, file.ContentType,
 		)
 
 	sql, args, err := query.ToSql()
@@ -70,7 +94,7 @@ func CreateBatch(db *db.DB, files []*File) ([]uuid.UUID, error) {
 		Columns(
 			"id", "file_id", "version_parent_id", "owner_id", "path_parent_id",
 			"name", "path", "s3_key", "size", "etag", "version",
-			"created_at", "updated_at", "permissions", "lock_info", "content_type",
+			"created_at", "updated_at", "lock_info", "content_type",
 		)
 
 	ids := make([]uuid.UUID, 0, len(files))
@@ -82,7 +106,7 @@ func CreateBatch(db *db.DB, files []*File) ([]uuid.UUID, error) {
 			file.OwnerID,
 			file.PathParentID,
 			file.Name, file.Path, file.S3Key, file.Size, file.ETag, file.Version,
-			file.CreatedAt, file.UpdatedAt, file.Permissions, file.LockInfo,
+			file.CreatedAt, file.UpdatedAt, file.LockInfo,
 			file.ContentType,
 		)
 		ids = append(ids, file.ID)
@@ -172,7 +196,6 @@ func RecursiveFileSearch(db *db.DB, ownerID uuid.UUID, startingPath string, star
 			&file.Version,
 			&file.CreatedAt,
 			&file.UpdatedAt,
-			&file.Permissions,
 			&file.LockInfo,
 		)
 		if err != nil {
@@ -296,7 +319,6 @@ func GetUserFiles(db *db.DB, ownerID uuid.UUID, startingPath string, depth strin
 			&file.Version,
 			&file.CreatedAt,
 			&file.UpdatedAt,
-			&file.Permissions,
 			&file.LockInfo,
 		)
 		if err != nil {
@@ -335,7 +357,6 @@ func GetFileByID(db *db.DB, id uuid.UUID) (*File, error) {
 		&file.Version,
 		&file.CreatedAt,
 		&file.UpdatedAt,
-		&file.Permissions,
 		&file.LockInfo,
 	)
 	if err != nil {
@@ -376,7 +397,6 @@ func GetFileByPath(db *db.DB, ownerID uuid.UUID, path string) (*File, error) {
 		&file.Version,
 		&file.CreatedAt,
 		&file.UpdatedAt,
-		&file.Permissions,
 		&file.LockInfo,
 	)
 	if err != nil {
@@ -400,7 +420,6 @@ func UpdateFile(db *db.DB, file *File) error {
 		Set("etag", file.ETag).
 		Set("version", file.Version).
 		Set("updated_at", file.UpdatedAt).
-		Set("permissions", file.Permissions).
 		Set("lock_info", file.LockInfo).
 		Where(squirrel.Eq{"id": file.ID})
 
@@ -600,6 +619,42 @@ func DeleteFileByPath(db *db.DB, ownerID uuid.UUID, path *utils.Path) error {
 	defer cancel()
 
 	query := db.Builder.Delete("files").Where(squirrel.Eq{"owner_id": ownerID, "path": path.Clean})
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Pool.Exec(dbCtx, sql, args...)
+	return err
+}
+
+func LockFile(db *db.DB, fileID uuid.UUID, userID uuid.UUID, lockTimeout time.Duration) error {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	lockInfo := fmt.Sprintf("%d_%s", time.Now().Add(lockTimeout).Unix(), userID.String())
+
+	query := db.Builder.Update("files").
+		Set("lock_info", lockInfo).
+		Where(squirrel.Eq{"id": fileID})
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Pool.Exec(dbCtx, sql, args...)
+	return err
+}
+
+func UnlockFile(db *db.DB, fileID uuid.UUID) error {
+	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := db.Builder.Update("files").
+		Set("lock_info", "").
+		Where(squirrel.Eq{"id": fileID})
+
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return err

@@ -36,6 +36,7 @@ Moreover, as this list is used to name minor changes and due to the fact that it
       1. Logic retrieving list of users files
       2. Logic of file upload
       3. Logic of file download
+      4. Logic of file Locking
    3. WebDAV
       1. Basic WebDAV support
       2. Integrate API logic with WebDAV layer

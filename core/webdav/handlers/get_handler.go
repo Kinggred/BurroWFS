@@ -6,6 +6,7 @@ import (
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
+	"burrowfs/core/types"
 	"burrowfs/core/utils"
 	"context"
 	"errors"
@@ -15,24 +16,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// CombinedResponses holds the possible responses for a GET request.
-// It hat to contain a File metadata and either raw Data or a redirect Address.
-type CombinedResponses struct {
-	File    *models.File
-	Data    io.ReadCloser
-	Address string
-}
-
-func (c *CombinedResponses) IsEmpty() bool {
-	return c.File == nil && c.Data == nil && c.Address == ""
-}
-
-func (c *CombinedResponses) ReturnAsRedirect() bool {
-	return c.Address != ""
-}
-
-func NewCombinedResponses(file *models.File, data io.ReadCloser, address string) *CombinedResponses {
-	return &CombinedResponses{
+func newCombinedResponses(file *models.File, data io.ReadCloser, address string) *types.CombinedResponses {
+	return &types.CombinedResponses{
 		File:    file,
 		Data:    data,
 		Address: address,
@@ -40,7 +25,7 @@ func NewCombinedResponses(file *models.File, data io.ReadCloser, address string)
 }
 
 // HandleGet processes a GET request to retrieve a file's metadata and content.
-func HandleGet(ctx context.Context, user *rest.UserResponse, path *utils.Path, blockRedirect bool) (status int, combinedResponse *CombinedResponses) {
+func HandleGet(ctx context.Context, user *rest.UserResponse, path *utils.Path, blockRedirect bool) (status int, combinedResponse *types.CombinedResponses) {
 	logger := logging.Get("handlers/get")
 	dbConn, err := db.Open()
 	defer dbConn.Close()
@@ -59,7 +44,7 @@ func HandleGet(ctx context.Context, user *rest.UserResponse, path *utils.Path, b
 		}
 	}
 
-	combinedResponse = NewCombinedResponses(file, nil, "")
+	combinedResponse = newCombinedResponses(file, nil, "")
 	if blockRedirect {
 		stream, err := aws.GetFileStream(ctx, file.S3Key)
 		if err != nil {

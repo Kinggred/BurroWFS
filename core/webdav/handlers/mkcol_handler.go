@@ -44,8 +44,6 @@ func HandleMkcol(user rest.UserResponse, newPath *utils.Path) (status int, locat
 		Name:         newPath.Name,
 		Path:         newPath.Clean,
 		Size:         0,
-		Permissions:  "{}",
-		LockInfo:     "{}",
 	}
 
 	_, err = models.CreateFile(dbConn, &file)

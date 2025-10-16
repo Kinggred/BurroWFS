@@ -101,6 +101,7 @@ func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Pat
 	} else {
 		logger.Error("File versioning not implemented yet")
 		return http.StatusInternalServerError
+		// TODO: Implement versioning
 		//newVersion := file.Version + 1
 		// Update existing file record with new version
 		// create a method saving previous version

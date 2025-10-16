@@ -1,19 +1,6 @@
 version: "3.9"
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    env_file:
-      - .env.local
-    depends_on:
-      - db
-    volumes:
-      - .:/app
-
   db:
     image: postgres:15
     container_name: burrowfs-db
@@ -23,6 +10,28 @@ services:
       - "6432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /app/migrate-tool
+    env_file:
+      - .env.local
+    depends_on:
+      - db
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:8080"
+    env_file:
+      - .env.local
+    depends_on:
+      - migrate
+      - db
 
 volumes:
   db_data:

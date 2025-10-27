@@ -1,10 +1,11 @@
-name: Build & Publish BurroWFS Docker Image (Manual for PRs)
+name: Build & Publish BurroWFS Docker Image
 
-# Available for manual run on PRs or any branch
 on:
+  workflow_call:
   workflow_dispatch:
-  pull_request_target:
-    types: [opened, reopened]
+  push:
+    branches:
+      - 131-Added-github-actions-deployment
 
 jobs:
   build-and-push:
@@ -13,15 +14,11 @@ jobs:
 
     permissions:
       contents: read
-      packages: write
-
-    if: github.event_name == 'workflow_dispatch'  # Run only when manually triggered
+      packages: write  # Required to push to GHCR using GITHUB_TOKEN
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref_name }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -33,19 +30,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/kinggred/burrowfs:pr-${{ github.event.pull_request.number }}
+            ghcr.io/kinggred/burrowfs:latest
             ghcr.io/kinggred/burrowfs:${{ github.ref_name }}-${{ github.sha }}
+            ghcr.io/kinggred/burrowfs:${{ github.ref_name }}
 
-      - name: Show image info
+      - name: Print image details
         run: |
-          echo "✅ PR Build for: ${{ github.event.pull_request.head.ref }}"
-          echo "✅ Image tags:"
-          echo "   ghcr.io/kinggred/burrowfs:pr-${{ github.event.pull_request.number }}"
+          echo "✅ Image pushed to GHCR:"
+          echo "   ghcr.io/kinggred/burrowfs:latest"
           echo "   ghcr.io/kinggred/burrowfs:${{ github.ref_name }}-${{ github.sha }}"
+          echo "   ghcr.io/kinggred/burrowfs:${{ github.ref_name }}"

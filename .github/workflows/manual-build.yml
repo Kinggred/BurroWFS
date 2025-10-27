@@ -2,6 +2,9 @@ name: Manual BurroWFS Build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 131-Added-github-actions-deployment
 
 jobs:
   build:

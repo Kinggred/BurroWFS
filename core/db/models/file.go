@@ -3,7 +3,7 @@ package models
 import (
 	"burrowfs/core/db"
 	"burrowfs/core/logging"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
 	"context"
 	"fmt"
 	"strconv"
@@ -30,18 +30,38 @@ type File struct {
 	Version         int        `db:"version" json:"version"`
 	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
-	LockInfo        string     `db:"lock_info" json:"lock_info"`
+	LockInfo        *string    `db:"lock_info" json:"lock_info"`
 }
 
 func (f File) String() string {
 	return fmt.Sprintf("fileName: %s, filePath: %s", f.Name, f.Path)
 }
 
+// ToDTO converts a File model to a FileDTO for use in API or transfer layers.
+func (f File) ToDTO() types.FileDTO {
+	return types.FileDTO{
+		ID:           f.ID,
+		FileID:       f.FileID,
+		OwnerID:      f.OwnerID,
+		PathParentID: f.PathParentID,
+		ContentType:  f.ContentType,
+		Name:         f.Name,
+		Path:         f.Path,
+		S3Key:        f.S3Key,
+		Size:         f.Size,
+		ETag:         f.ETag,
+		Version:      f.Version,
+		CreatedAt:    f.CreatedAt,
+		UpdatedAt:    f.UpdatedAt,
+		LockInfo:     f.LockInfo,
+	}
+}
+
 // IsLocked checks if the file is currently locked based on the LockInfo field.
 // ONLY CHECK BEFORE SETTING A NEW LOCK!
 func (f File) IsLocked() bool {
-	if f.LockInfo != "" {
-		parts := strings.Split(f.LockInfo, "_")
+	if f.LockInfo != nil {
+		parts := strings.Split(*f.LockInfo, "_")
 		if len(parts) != 2 {
 			return true
 		}
@@ -58,7 +78,8 @@ func (f File) IsLocked() bool {
 }
 
 func (f File) SetLock(userID uuid.UUID, lockTimeout time.Duration) {
-	f.LockInfo = fmt.Sprintf("%d_%s", time.Now().Add(lockTimeout).Unix(), userID.String())
+	lockInfo := fmt.Sprintf("%d_%s", time.Now().Add(lockTimeout).Unix(), userID.String())
+	f.LockInfo = &lockInfo
 }
 
 func CreateFile(db *db.DB, file *File) (uuid.UUID, error) {
@@ -165,7 +186,7 @@ func RecursiveFileSearch(db *db.DB, ownerID uuid.UUID, startingPath string, star
 			)
 			SELECT id, file_id, version_parent_id, owner_id, path_parent_id,
     		name, path, s3_key, size, content_type, etag, version,
-    		created_at, updated_at, permissions, lock_info 
+    		created_at, updated_at, lock_info 
 			FROM file_tree
 			ORDER BY
     		path_ids,                  -- ensures parent-first traversal
@@ -286,7 +307,7 @@ func GetUserFiles(db *db.DB, ownerID uuid.UUID, startingPath string, depth strin
 			)
 			SELECT id, file_id, version_parent_id, owner_id, path_parent_id,
     		name, path, s3_key, size, content_type, etag, version,
-    		created_at, updated_at, permissions, lock_info 
+    		created_at, updated_at, lock_info 
 			FROM file_tree
 			ORDER BY
     		path_ids,                  -- ensures parent-first traversal
@@ -512,7 +533,7 @@ func UpdateFilePartial(db *db.DB, id string, updates map[string]interface{}) err
 	return err
 }
 
-func MoveFile(db *db.DB, ownerID uuid.UUID, oldPath *utils.Path, newPath *utils.Path, newPathParent *File) error {
+func MoveFile(db *db.DB, ownerID uuid.UUID, oldPath *types.Path, newPath *types.Path, newPathParent *File) error {
 	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -535,7 +556,7 @@ func MoveFile(db *db.DB, ownerID uuid.UUID, oldPath *utils.Path, newPath *utils.
 	return err
 }
 
-func MoveDirectory(db *db.DB, ownerID uuid.UUID, oldPath *utils.Path, newPathRoot *utils.Path, newPathParentID *uuid.UUID) error {
+func MoveDirectory(db *db.DB, ownerID uuid.UUID, oldPath *types.Path, newPathRoot *types.Path, newPathParentID *uuid.UUID) error {
 	logger := logging.Get("MoveDirectory")
 	logger.Info("Moving directory from ", oldPath.Clean, " to ", newPathRoot.Clean)
 
@@ -614,7 +635,7 @@ func DeleteFilesByIDs(db *db.DB, ids []uuid.UUID) error {
 	return err
 }
 
-func DeleteFileByPath(db *db.DB, ownerID uuid.UUID, path *utils.Path) error {
+func DeleteFileByPath(db *db.DB, ownerID uuid.UUID, path *types.Path) error {
 	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

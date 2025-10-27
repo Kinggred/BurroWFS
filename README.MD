@@ -3,6 +3,20 @@
 https://www.zotero.org/
 ## [Versioning](https://semver.org/)
 
+
+## What is it?
+
+BurroWFS is a serverless WebDAV file system that uses AWS S3 as a backend.
+It is designed to be used with file explorers such as Windows Explorer, macOS Finder, and various Linux file managers.
+
+## Running locally
+
+Simple way to run is to use `docker-compose up --build` command.
+or simply `make docker-up`
+This will start the API on `localhost:80` and Postgres on `localhost:6432`.
+Running locally without AWS keys will break S3 integration.
+Basic postman collection is provided in `postman` folder.
+
 ## Development pipeline:
 
 `main` -> `x.y-dev` -> `xyz-Short-description` -> `x.y-dev` -> `main`
@@ -48,6 +62,7 @@ Moreover, as this list is used to name minor changes and due to the fact that it
    5. Other
       1. Error Handling
       2. Logging
+      3. Rest API Interface
 
 3. AWS
    1. Lambda

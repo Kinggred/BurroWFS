@@ -10,7 +10,7 @@ ENV CGO_ENABLED=0 \
     GOOS=linux \
     GOARCH=amd64
 
-# Buduj konkretny pakiet z main (tu: ./cmd/app)
+# Build specific package from main (here: ./cmd/app)
 RUN go build -ldflags="-s -w" -o /app/main ./cmd/app
 
 FROM gcr.io/distroless/static:nonroot

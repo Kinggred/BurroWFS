@@ -1,0 +1,7 @@
+name: Build & Publish BurroWFS Docker Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 131-Added-github-actions-deployment

@@ -1,7 +1,7 @@
 package webdav
 
 import (
-	"burrowfs/core/webdav/handlers"
+	"burrowfs/core/types"
 	"io"
 	"time"
 )
@@ -16,7 +16,7 @@ type FileResponse struct {
 	Data         io.ReadCloser
 }
 
-func NewFileResponse(responses *handlers.CombinedResponses) FileResponse {
+func NewFileResponse(responses *types.CombinedResponses) FileResponse {
 	return FileResponse{
 		ContentType:  responses.File.ContentType,
 		Size:         responses.File.Size,

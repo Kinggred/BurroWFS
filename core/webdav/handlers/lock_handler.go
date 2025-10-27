@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"burrowfs/api/schemas"
-	"burrowfs/api/schemas/rest"
 	database "burrowfs/core/db"
 	"burrowfs/core/db/models"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
+	"time"
 )
 
-func HandleLock(user *rest.UserResponse, path *utils.Path, depth string, timeout string, body schemas.LockInfo) int {
+func HandleLock(user *types.InternalUser, path *types.Path, depth string, timeout string, body schemas.LockInfo) int {
 	dbConn, err := database.Open()
 	defer dbConn.Close()
 	if err != nil {
@@ -23,7 +23,7 @@ func HandleLock(user *rest.UserResponse, path *utils.Path, depth string, timeout
 		return 423
 	}
 
-	err = models.LockFile(dbConn, resourceToLock, depth, timeout, body)
+	err = models.LockFile(dbConn, *resourceToLock.FileID, user.Id, time.Minute*30) // TODO: use timeout from header
 	if err != nil {
 		return 500
 	}

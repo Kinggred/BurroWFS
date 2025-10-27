@@ -8,7 +8,7 @@ import (
 )
 
 // ParseJSON parses the JSON body of an HTTP request into the provided interface.
-func ParseJSON(r *http.Request, v interface{}) error {
+func ParseJSON(r *http.Request, v interface{}, validate bool) error {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -26,6 +26,20 @@ func ParseJSON(r *http.Request, v interface{}) error {
 	err = json.Unmarshal(body, v)
 	if err != nil {
 		return err
+	}
+
+	if validate {
+		err = ValidateStruct(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ValidateStruct(v interface{}) error {
+	if validatable, ok := v.(Validatable); ok {
+		return validatable.Validate()
 	}
 	return nil
 }

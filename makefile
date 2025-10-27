@@ -10,3 +10,6 @@ build:
 migrate: build
 	go run ./$(MIGRATE_BIN)
 	rm -f migrate-tool
+
+docker-up:
+	docker-compose -f docker-compose-local.yml up -d --build

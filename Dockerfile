@@ -1,14 +1,24 @@
+# Dockerfile
 FROM golang:1.24 AS builder
+WORKDIR /src
 
-WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o main .
-FROM alpine:latest
-WORKDIR /
-RUN apk add --no-cache libc6-compat
-COPY --from=builder /app/main .
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
 
-CMD ["/main"]
+# Buduj konkretny pakiet z main (tu: ./cmd/app)
+RUN go build -ldflags="-s -w" -o /app/main ./cmd/app
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /app
+COPY --from=builder /app/main /app/main
+
+USER nonroot
+ENV PORT=8080
+EXPOSE 8080
+
+CMD ["/app/main"]

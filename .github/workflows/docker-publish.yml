@@ -1,0 +1,49 @@
+name: Build & Publish BurroWFS Docker Image
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches:
+      - 131-Added-github-actions-deployment
+
+jobs:
+  build-and-push:
+    name: Build and push image to GHCR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write  # Required to push to GHCR using GITHUB_TOKEN
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/kinggred/burrowfs:latest
+            ghcr.io/kinggred/burrowfs:${{ github.ref_name }}-${{ github.sha }}
+            ghcr.io/kinggred/burrowfs:${{ github.ref_name }}
+
+      - name: Print image details
+        run: |
+          echo "✅ Image pushed to GHCR:"
+          echo "   ghcr.io/kinggred/burrowfs:latest"
+          echo "   ghcr.io/kinggred/burrowfs:${{ github.ref_name }}-${{ github.sha }}"
+          echo "   ghcr.io/kinggred/burrowfs:${{ github.ref_name }}"

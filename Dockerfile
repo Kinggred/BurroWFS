@@ -1,23 +1,24 @@
+# Dockerfile
 FROM golang:1.24 AS builder
+WORKDIR /src
 
-WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-COPY .env.local ./
-# Ensure static build for Alpine compatibility
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o migrate-tool ./cmd/migrate_up
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app-tool ./cmd/app
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
 
-FROM alpine:latest
+# Build specific package from main (here: ./cmd/app)
+RUN go build -ldflags="-s -w" -o /app/main ./cmd/app
+
+FROM gcr.io/distroless/static:nonroot
 WORKDIR /app
-RUN apk add --no-cache libc6-compat
-COPY --from=builder /app/migrate-tool .
-COPY --from=builder /app/app-tool .
-COPY --from=builder /app/.env.local .
+COPY --from=builder /app/main /app/main
 
-# Debug: list files and permissions
-RUN ls -l /app
+USER nonroot
+ENV PORT=8080
+EXPOSE 8080
 
-ENTRYPOINT ["/app/app-tool"]
+CMD ["/app/main"]

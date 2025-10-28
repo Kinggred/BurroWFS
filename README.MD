@@ -39,6 +39,7 @@ Moreover, as this list is used to name minor changes and due to the fact that it
       2. Database
    2. Documentation
    3. Quality of life
+      1. GitHub Actions
    4. Local Deployment
 
 2. API:

@@ -8,8 +8,7 @@ import (
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 	"burrowfs/core/utils"
-	methods "burrowfs/core/webdav"
-	"burrowfs/core/webdav/handlers"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -57,33 +56,25 @@ func FileRoutes() http.Handler {
 		schemas.JSONResponse(w, code, response)
 	})
 
-	router.Method(methods.LOCK, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.Put("/", func(w http.ResponseWriter, r *http.Request) {
 		user, err := utils.RetrieveUser(r.Context())
 		if err != nil {
-			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		path := utils.RetrievePath(r.URL.Path, true)
-		depth := r.Header.Get("Depth")
-		if depth == "" {
-			depth = "infinite"
-		}
-		timeout := r.Header.Get("Timeout")
-		if timeout == "" {
-			timeout = "Infinite"
-		}
-		var lockInfo schemas.LockInfo
-		err = common.ParseXML(r, &lockInfo)
 
-		data := handlers.HandleLock(&user, path, depth, timeout, lockInfo)
+		var body rest.PutFilesInputSchema
+		err = common.ParseJSON(r, &body, false)
 		if err != nil {
-			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
+			logger.Debug(fmt.Sprintf("%s: invalid request body", err))
+			http.Error(w, "Bad data provided", http.StatusUnprocessableEntity)
 			return
 		}
-		schemas.JSONResponse(w, data, nil)
 
-		//schemas.LockWebDavResponse(w, http.StatusOK, lockInfo)
-	}))
+		code := crud.HandlePut(&user, body)
+
+		schemas.JSONResponse(w, code, nil)
+	})
 
 	return router
 }

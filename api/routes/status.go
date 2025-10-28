@@ -29,7 +29,7 @@ func StatusRoutes() http.Handler {
 		response := rest.StatusSchema{
 			Status:   "ok",
 			Database: dbStatus,
-			Time:     time.DateTime,
+			Time:     time.Now().UTC().String(),
 			Debug:    config.CONFIG.Debug,
 		}
 

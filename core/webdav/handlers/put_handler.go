@@ -1,24 +1,54 @@
 package handlers
 
 import (
-	"burrowfs/api/schemas/rest"
+	"burrowfs/core/aws"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
+func getFileMetadata(data io.ReadCloser) (newData io.ReadCloser, mime *mimetype.MIME, fileSize int64) {
+	var logger = logging.Get("webdav/fileMetadata")
+	buf, err := io.ReadAll(io.LimitReader(data, 4096))
+	if err != nil {
+		logger.Error("Failed to read data: ", err)
+		return newData, nil, 0
+	}
+	mime = mimetype.Detect(buf)
+
+	remainingData, err := io.ReadAll(data)
+	if err != nil {
+		logger.Error("Failed to read remaining data: ", err)
+	}
+	fullContents := append(buf, remainingData...)
+	fileSize = int64(len(fullContents))
+	data = io.NopCloser(bytes.NewReader(fullContents))
+
+	logger.Debug("Detected MIME type: ", mime.String())
+	return data, mime, fileSize
+}
+
 // HandlePut processes a PUT request to upload or update a file.
-func HandlePut(user *rest.UserResponse, newPath *utils.Path, data *[]byte) int {
-	fileSize := int64(len(*data))
+func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Path, data io.ReadCloser) int {
 	var logger = logging.Get("webdav/put")
 	logger.Info("PUT request for user: ", user)
+
+	data, mime, fileSize := getFileMetadata(data)
+	if mime == nil {
+		logger.Error("Failed to detect MIME type")
+		return http.StatusInternalServerError
+	}
 
 	dbConn, err := db.Open()
 	defer dbConn.Close()
@@ -26,16 +56,12 @@ func HandlePut(user *rest.UserResponse, newPath *utils.Path, data *[]byte) int {
 		logger.Error("Failed to connect to database: ", err)
 	}
 
-	// Limit file size to 10MB for now
-	if fileSize > 10*1024*1024 {
+	if fileSize > aws.MaxFileSize {
 		logger.Info("File size exceeds limit")
 		return http.StatusRequestEntityTooLarge
 	}
 
-	// TODO: File content waits for S3 integration
-	//	logger.Error("Failed to read request body: ", err)
 	var pathParentID *uuid.UUID = nil
-	var newFile models.File
 
 	file, err := models.GetFileByPath(dbConn, user.Id, newPath.Clean)
 	if err == nil {
@@ -58,34 +84,38 @@ func HandlePut(user *rest.UserResponse, newPath *utils.Path, data *[]byte) int {
 	if file == nil {
 		fileId := uuid.New()
 		fileVersion := 1
-		newFile = models.File{
+		file = &models.File{
 			ID:           uuid.New(),
 			FileID:       &fileId,
 			OwnerID:      user.Id,
 			PathParentID: pathParentID,
-			ContentType:  "text/yaml", // TODO: Detect content type
-			Name:         newFile.Name,
+			ContentType:  mime.String(),
+			Name:         newPath.Name,
 			Path:         newPath.Clean,
-			S3Key:        fmt.Sprintf("/%s/%s/%d", user.Id, fileId, fileVersion),
+			S3Key:        fmt.Sprintf("%s/%s/%d", user.Id, fileId, fileVersion),
 			Size:         fileSize,
 			ETag:         "", // To be generated after S3 upload
 			Version:      fileVersion,
-			Permissions:  "{}", // Default permissions
-			LockInfo:     "{}", // Figure out later
 		}
-		_, err = models.CreateFile(dbConn, &newFile)
-		if err != nil {
-			logger.Error("Failed to create new file record: ", err)
-			return http.StatusInternalServerError
-		}
-		logger.Info("Created new file: ", newFile.Path)
-		return http.StatusCreated
+		logger.Info("Created new file: ", file.Path)
 	} else {
 		logger.Error("File versioning not implemented yet")
 		return http.StatusInternalServerError
+		// TODO: Implement versioning
 		//newVersion := file.Version + 1
 		// Update existing file record with new version
 		// create a method saving previous version
 	}
 
+	eTag, err := aws.PutFile(ctx, file, data)
+	if err != nil {
+		logger.Error(err.Error())
+		return http.StatusInternalServerError
+	}
+	// Update the ETag after successful upload via lambda events possibly
+	file.ETag = eTag
+
+	_, err = models.CreateFile(dbConn, file)
+
+	return http.StatusCreated
 }

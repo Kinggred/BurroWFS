@@ -2,9 +2,9 @@ package middleware
 
 import (
 	"burrowfs/api/common"
-	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
+	"burrowfs/core/types"
 	"burrowfs/core/utils"
 	"context"
 	"crypto/md5"
@@ -82,26 +82,24 @@ func ParseDigestHeader(authHeader string) map[string]string {
 	return digestFields
 }
 
-func extractUserFromAuthHeader(digestFields map[string]string) rest.UserResponse {
+func extractUserFromAuthHeader(digestFields map[string]string) types.InternalUser {
 	username := digestFields["username"]
 
 	doConn, err := db.Open()
 	defer doConn.Close()
 	if err != nil {
-		return rest.UserResponse{}
+		return types.InternalUser{}
 	}
 
 	user, err := models.GetUserByEmail(doConn, username)
 	if err != nil || user == nil {
-		return rest.UserResponse{}
+		return types.InternalUser{}
 	}
 
-	return rest.UserResponse{
-		Id:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: user.ModifiedAt.Format(time.RFC3339),
+	return types.InternalUser{
+		Id:    user.ID,
+		Name:  user.Name,
+		Email: user.Email,
 	}
 }
 
@@ -180,10 +178,6 @@ func DigestAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		currentUser := extractUserFromAuthHeader(digestFields)
-		if currentUser == (rest.UserResponse{}) {
-			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
-			return
-		}
 
 		ctx := context.WithValue(r.Context(), "user", currentUser)
 		next.ServeHTTP(w, r.WithContext(ctx))

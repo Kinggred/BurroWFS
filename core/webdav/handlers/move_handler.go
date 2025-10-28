@@ -1,11 +1,10 @@
 package handlers
 
 import (
-	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
-	"burrowfs/core/utils"
+	"burrowfs/core/types"
 	"errors"
 
 	"github.com/google/uuid"
@@ -13,7 +12,7 @@ import (
 )
 
 // HandleMove processes a MOVE request to move or rename a file or directory.
-func HandleMove(user *rest.UserResponse, currentPath *utils.Path, newPath *utils.Path, overwrite bool) int {
+func HandleMove(user *types.InternalUser, currentPath *types.Path, newPath *types.Path, overwrite bool) int {
 	logger := logging.Get("handlers/move")
 	dbConn, err := db.Open()
 	defer dbConn.Close()

@@ -23,7 +23,7 @@ func AuthRoutes() http.Handler {
 		defer dbConn.Close()
 
 		var body rest.RegisterSchema
-		err = common.ParseBody(r, &body)
+		err = common.ParseJSON(r, &body, false) // TODO
 		if err != nil {
 			common.HttpError(w, http.StatusUnprocessableEntity, "Bad data provided")
 			return

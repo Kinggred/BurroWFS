@@ -1,7 +1,7 @@
 package webdav
 
 import (
-	"burrowfs/core/db/models"
+	"burrowfs/core/types"
 	"time"
 )
 
@@ -9,7 +9,7 @@ type MultistatusSchema struct {
 	Responses []ResourceSchema
 }
 
-func ParseFilesToMultistatus(files []models.File) MultistatusSchema {
+func ParseFilesToMultistatus(files []types.FileDTO) MultistatusSchema {
 	multistatus := MultistatusSchema{}
 	for _, file := range files {
 		response := ParseFileToResponse(file)
@@ -29,7 +29,7 @@ type ResourceSchema struct {
 	Status        string
 }
 
-func ParseFileToResponse(file models.File) ResourceSchema {
+func ParseFileToResponse(file types.FileDTO) ResourceSchema {
 	href := file.Path
 	if file.FileID == nil && href[len(href)-1] != '/' {
 		href += "/"

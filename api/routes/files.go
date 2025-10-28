@@ -3,26 +3,61 @@ package routes
 import (
 	"burrowfs/api/common"
 	"burrowfs/api/schemas"
-	"burrowfs/api/schemas/webdav"
+	"burrowfs/api/schemas/rest"
+	"burrowfs/core/crud"
 	"burrowfs/core/logging"
+	"burrowfs/core/types"
 	"burrowfs/core/utils"
 	methods "burrowfs/core/webdav"
 	"burrowfs/core/webdav/handlers"
-	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 )
 
-func FilesRoutes() http.Handler {
-	logger := logging.Get("webdav/router")
+// FileRoutes Provides more Rest like access to files and directories
+// It expects and returns JSON data
+// Allows for simpler implementation on the client side for basic web views
+func FileRoutes() http.Handler {
+	logger := logging.Get("routes/files")
 	router := chi.NewRouter()
 
-	router.Options("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		schemas.JSONResponse(w, http.StatusOK, "OK")
-	}))
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		user, err := utils.RetrieveUser(r.Context())
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 
-	router.Method(methods.PROPFIND, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		filePath := r.URL.Query().Get("filePath")
+		depth := r.URL.Query().Get("depth")
+
+		path := utils.RetrievePath(filePath, true)
+		logger.Debug(depth + " " + filePath)
+
+		if depth != "0" && depth != "1" && depth != "infinity" {
+			http.Error(w, "invalid depth value", http.StatusBadRequest)
+			return
+		}
+
+		files, code := crud.HandleGet(&user, path, depth)
+
+		if code != http.StatusOK {
+			http.Error(w, http.StatusText(code), code)
+			return
+		}
+
+		fileDTOs := make([]types.FileDTO, 0, len(files))
+		for _, f := range files {
+			fileDTOs = append(fileDTOs, f.ToDTO())
+		}
+
+		response := rest.NewGetResponseSchema(fileDTOs)
+
+		schemas.JSONResponse(w, code, response)
+	})
+
+	router.Method(methods.LOCK, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, err := utils.RetrieveUser(r.Context())
 		if err != nil {
 			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
@@ -33,122 +68,22 @@ func FilesRoutes() http.Handler {
 		if depth == "" {
 			depth = "infinite"
 		}
-		files, err := handlers.HandlePropfind(&user, path, depth)
+		timeout := r.Header.Get("Timeout")
+		if timeout == "" {
+			timeout = "Infinite"
+		}
+		var lockInfo schemas.LockInfo
+		err = common.ParseXML(r, &lockInfo)
+
+		data := handlers.HandleLock(&user, path, depth, timeout, lockInfo)
 		if err != nil {
 			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
 			return
 		}
+		schemas.JSONResponse(w, data, nil)
 
-		response := webdav.ParseFilesToMultistatus(files)
-
-		fromRoot := r.URL.Path == "/"
-		schemas.MultistatusWebDavResponse(w, response, fromRoot)
+		//schemas.LockWebDavResponse(w, http.StatusOK, lockInfo)
 	}))
-
-	router.Method(http.MethodPut, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, err := utils.RetrieveUser(r.Context())
-		if err != nil {
-			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
-			return
-		}
-
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			common.HttpError(w, http.StatusInternalServerError, "Error reading file data")
-			logger.Debug(err.Error())
-			return
-		}
-		defer func(Body io.ReadCloser) {
-			err := Body.Close()
-			if err != nil {
-				logger.Error(err.Error())
-			}
-		}(r.Body)
-
-		newPath := utils.RetrievePath(r.URL.Path, true)
-		logger.Debug("PUT request for path: " + newPath.Clean + " by user: " + user.Name)
-
-		status := handlers.HandlePut(&user, newPath, &data)
-
-		if status != http.StatusCreated && status != http.StatusOK {
-			common.HttpError(w, status, http.StatusText(status))
-			return
-		}
-
-	}))
-
-	router.Method(methods.MKCOL, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		newPath := utils.RetrievePath(r.URL.Path, true)
-		user, err := utils.RetrieveUser(r.Context())
-		if err != nil {
-			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
-			return
-		}
-		status, path := handlers.HandleMkcol(user, newPath)
-
-		schemas.MkcolWebDavResponse(w, status, path)
-	}))
-
-	router.Method(methods.MOVE, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, err := utils.RetrieveUser(r.Context())
-		if err != nil {
-			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
-			return
-		}
-		destination := r.Header.Get("Destination")
-		if destination == "" {
-			common.HttpError(w, http.StatusBadRequest, "Destination header is required")
-			return
-		}
-		currentPath := utils.RetrievePath(r.URL.Path, true)
-		newPath := utils.RetrievePath(destination, false)
-		overwrite := r.Header.Get("Overwrite") == "T"
-		status := handlers.HandleMove(&user, currentPath, newPath, overwrite)
-		if status != 201 && status != 204 {
-			common.HttpError(w, status, http.StatusText(status))
-			return
-		}
-		schemas.MoveWebDavResponse(w, status)
-	}))
-
-	router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		user, err := utils.RetrieveUser(r.Context())
-		if err != nil {
-			common.HttpError(w, 401, "Auth error")
-			logger.Debug(err.Error())
-			return
-		}
-		path := utils.RetrievePath(r.URL.Path, true)
-
-		status, combined := handlers.HandleGet(&user, path)
-
-		if status != 200 {
-			common.HttpError(w, status, http.StatusText(status))
-			return
-		}
-
-		if combined == nil || combined.IsEmpty() {
-			common.HttpError(w, 500, "Internal server error")
-			logger.Error("Combined response is nil or empty")
-			return
-		}
-
-		if combined.ReturnAsRedirect() {
-			http.Redirect(w, r, combined.Address, http.StatusTemporaryRedirect)
-			return
-		}
-
-		file := combined.File
-		data := combined.Data
-		if file == nil || data == nil {
-			common.HttpError(w, 500, "Internal server error")
-			logger.Error("File or data in combined response is nil")
-			return
-		}
-
-		response := webdav.NewFileResponse(combined)
-		schemas.FileWebDavResponse(w, status, &response)
-	})
 
 	return router
 }

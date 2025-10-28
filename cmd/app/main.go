@@ -26,11 +26,12 @@ func main() {
 	router.Use(builtInMiddleware.RealIP)
 	router.Use(builtInMiddleware.Timeout(5 * time.Minute))
 
-	router.Mount("/", webdavMiddlewares(routes.WebDavRoutes()))
 	router.Mount(pathWithAPIPrefix("/status"), routes.StatusRoutes())
 	router.Mount(pathWithAPIPrefix("/auth"), routes.AuthRoutes())
 	router.Mount(pathWithAPIPrefix("/user"), middleware.DigestAuthMiddleware(routes.UserRoutes()))
 	router.Mount(pathWithAPIPrefix("/files"), middleware.DigestAuthMiddleware(routes.FileRoutes()))
+
+	router.Mount("/", webdavMiddlewares(routes.WebDavRoutes()))
 
 	logger.Info("listening on port: " + config.CONFIG.Port)
 	logger.Debug("Debug mode is enabled")

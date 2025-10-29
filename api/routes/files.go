@@ -71,7 +71,8 @@ func FileRoutes() http.Handler {
 			return
 		}
 
-		code := crud.HandlePut(&user, body)
+		items := body.Items
+		code := crud.HandlePut(r.Context(), &user, &items)
 
 		schemas.JSONResponse(w, code, nil)
 	})

@@ -4,6 +4,7 @@ import (
 	"burrowfs/api/common"
 	"burrowfs/api/schemas"
 	"burrowfs/api/schemas/rest"
+	"burrowfs/core/aws"
 	"burrowfs/core/crud"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
@@ -63,6 +64,8 @@ func FileRoutes() http.Handler {
 			return
 		}
 
+		basePath := utils.RetrievePath(r.URL.Query().Get("base_path"), true)
+
 		var body rest.PutFilesInputSchema
 		err = common.ParseJSON(r, &body, false)
 		if err != nil {
@@ -72,9 +75,26 @@ func FileRoutes() http.Handler {
 		}
 
 		items := body.Items
-		code := crud.HandlePut(r.Context(), &user, &items)
+		code, files := crud.HandlePut(&user, &items, basePath)
 
-		schemas.JSONResponse(w, code, nil)
+		presignedUrls, err := aws.GetPresignedURLs(&files)
+		if err != nil {
+			common.HttpError(w, http.StatusInternalServerError, "Could not generate presigned URLs")
+			logger.Error(fmt.Sprintf("%s: could not generate presigned URLs", err))
+			return
+		}
+		var fileInResponseList []rest.FileInResponse
+
+		for _, file := range files {
+			fileInResponse := rest.FileInResponse{
+				FileID:       file.ID.String(),
+				Path:         file.Path,
+				PresignedURL: presignedUrls[*file.FileID],
+			}
+			fileInResponseList = append(fileInResponseList, fileInResponse)
+		}
+
+		schemas.JSONResponse(w, code, fileInResponseList)
 	})
 
 	return router

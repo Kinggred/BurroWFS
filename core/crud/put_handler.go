@@ -2,33 +2,81 @@ package crud
 
 import (
 	"burrowfs/api/schemas/rest"
+	"burrowfs/core/db"
+	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 	"burrowfs/core/utils"
 	"burrowfs/core/webdav/handlers"
-	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"net/http"
+	"time"
 )
 
-func HandlePut(ctx context.Context, user *types.InternalUser, filesToAdd *[]rest.FileBodySchema) int {
+func HandlePut(user *types.InternalUser, filesToAdd *[]rest.FileInRequest, basePath *types.Path) (code int, newFiles []types.FileDTO) {
 	logger := logging.Get("handlers/put")
 	logger.Debug(fmt.Sprint("Putting files: ", len(*filesToAdd)))
-	var createdFilePaths []*types.Path
+
+	dbConn, err := db.Open()
+	defer dbConn.Close()
+	if err != nil {
+		logger.Error(err.Error())
+		return http.StatusInternalServerError, nil
+	}
+
+	var createdFiles []*models.File
+	var status int
 
 	for _, file := range *filesToAdd {
-		path := utils.RetrievePath(file.RelativePath, true)
-		status := handlers.HandlePut(ctx, user, path, file.GetReadCloser())
-		if status != http.StatusCreated {
-			logger.Error(fmt.Sprintf("Failed to put file %s with status %d", file.RelativePath, status))
-			// TODO: Create proper rollback mechanism once delete handler is implemented
-			// Rollback previously created files
-			// for _, createdPath := range createdFilePaths {
-			// handlers.HandleDelete(ctx, user, createdPath)
-			// }
+		var parentDir *models.File
+		var fileID uuid.UUID
+		path := basePath.MergePaths(*utils.RetrievePath(file.RelativePath, true))
+		if path.IsFolder() {
+			status, _ = handlers.HandleMkcol(*user, path)
 		} else {
-			createdFilePaths = append(createdFilePaths, path)
+			// Verify all parent directories exist
+			if !basePath.IsParentRoot() {
+				parentDir, err = models.GetFileByPath(dbConn, user.Id, basePath.Clean)
+				if err != nil {
+					logger.Error("Parent directory does not exist: ", err)
+					return http.StatusConflict, nil
+				}
+				if parentDir.FileID != nil {
+					logger.Error("Parent path is not a directory")
+					return http.StatusConflict, nil
+				}
+			}
+			fileID = uuid.New()
+			var pathParentID *uuid.UUID = nil
+			if parentDir != nil {
+				pathParentID = &parentDir.ID
+			}
+			_, mimetype, _ := utils.GetFileMetadata(file.GetReadCloser())
+
+			fileToAdd := models.File{
+				ID:           uuid.New(),
+				FileID:       &fileID,
+				OwnerID:      user.Id,
+				PathParentID: pathParentID,
+				ContentType:  mimetype.String(),
+				Name:         path.Name,
+				Path:         path.Clean,
+				S3Key:        utils.GenerateKey(user, fileID.String(), 1),
+				Size:         file.Size,
+				Version:      1,
+				CreatedAt:    time.Time{},
+				UpdatedAt:    time.Time{},
+			}
+
+			createdFiles = append(createdFiles, &fileToAdd)
+			newFiles = append(newFiles, fileToAdd.ToDTO())
 		}
 	}
-	return http.StatusCreated
+	_, err = models.CreateBatch(dbConn, createdFiles)
+	if err != nil {
+		return http.StatusInternalServerError, nil
+	}
+
+	return status, newFiles
 }

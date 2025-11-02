@@ -39,3 +39,26 @@ func (p *Path) SplitAndEncode(raw string, sep string) []string {
 	}
 	return parts
 }
+
+func (p *Path) safePathMerge(a string, b string) string {
+	return strings.TrimSuffix(a, "/") + "/" + strings.TrimPrefix(b, "/")
+}
+
+// MergePaths appends two paths together
+// Path which calls this method is treated as the base path
+// its values will be overwritten by the resulting merged path
+// returns self
+func (p *Path) MergePaths(addon Path) *Path {
+	p.Clean = p.safePathMerge(p.Clean, addon.Clean)
+	p.Raw = p.safePathMerge(p.Raw, addon.Raw)
+	p.Uri = p.safePathMerge(p.Uri, addon.Uri)
+
+	splitPath := strings.Split(p.Clean, "/")
+	p.Name = splitPath[len(splitPath)-1]
+	if len(splitPath) == 2 {
+		p.ParentPath = "/"
+	} else {
+		p.ParentPath = strings.Join(splitPath[:len(splitPath)-1], "/")
+	}
+	return p
+}

@@ -20,7 +20,7 @@ func GetPresignedURLs(files *[]types.FileDTO) (map[uuid.UUID]string, error) {
 	}
 	s3PresignClient := s3.NewPresignClient(s3Client)
 	var err error
-	var presignedURLs map[uuid.UUID]string
+	presignedURLs := make(map[uuid.UUID]string)
 	for _, file := range *files {
 		var result *v4.PresignedHTTPRequest
 		result, err = s3PresignClient.PresignPutObject(ctx, &s3.PutObjectInput{

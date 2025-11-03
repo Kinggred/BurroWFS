@@ -36,8 +36,8 @@ func HandlePut(user *types.InternalUser, filesToAdd *[]rest.FileInRequest, baseP
 			status, _ = handlers.HandleMkcol(*user, path)
 		} else {
 			// Verify all parent directories exist
-			if !basePath.IsParentRoot() {
-				parentDir, err = models.GetFileByPath(dbConn, user.Id, basePath.Clean)
+			if !path.IsParentRoot() {
+				parentDir, err = models.GetFileByPath(dbConn, user.Id, path.ParentPath)
 				if err != nil {
 					logger.Error("Parent directory does not exist: ", err)
 					return http.StatusConflict, nil

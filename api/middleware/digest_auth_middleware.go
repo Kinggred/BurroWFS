@@ -130,7 +130,12 @@ func DigestAuthMiddleware(next http.Handler) http.Handler {
 			nonce := GenerateNonce()
 			nonceStore.Store(nonce, time.Now().Add(nonceValidity))
 			w.Header().Set("WWW-Authenticate", `Digest realm="`+realmName+`", nonce="`+nonce+`", algorithm="MD5", qop="auth", opaque="`+opaqueValue+`"`)
-			w.WriteHeader(http.StatusUnauthorized)
+
+			if r.Header.Get("Browser-Workaround") == "true" {
+				w.WriteHeader(http.StatusForbidden) // Workaround to omit browser auth pop-up
+			} else {
+				w.WriteHeader(http.StatusUnauthorized)
+			}
 			return
 		}
 

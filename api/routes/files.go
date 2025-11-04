@@ -4,12 +4,12 @@ import (
 	"burrowfs/api/common"
 	"burrowfs/api/schemas"
 	"burrowfs/api/schemas/rest"
+	"burrowfs/core/aws"
 	"burrowfs/core/crud"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 	"burrowfs/core/utils"
-	methods "burrowfs/core/webdav"
-	"burrowfs/core/webdav/handlers"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -57,33 +57,45 @@ func FileRoutes() http.Handler {
 		schemas.JSONResponse(w, code, response)
 	})
 
-	router.Method(methods.LOCK, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.Put("/", func(w http.ResponseWriter, r *http.Request) {
 		user, err := utils.RetrieveUser(r.Context())
 		if err != nil {
-			common.HttpError(w, http.StatusUnauthorized, "Unauthorized")
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		path := utils.RetrievePath(r.URL.Path, true)
-		depth := r.Header.Get("Depth")
-		if depth == "" {
-			depth = "infinite"
-		}
-		timeout := r.Header.Get("Timeout")
-		if timeout == "" {
-			timeout = "Infinite"
-		}
-		var lockInfo schemas.LockInfo
-		err = common.ParseXML(r, &lockInfo)
 
-		data := handlers.HandleLock(&user, path, depth, timeout, lockInfo)
+		basePath := utils.RetrievePath(r.URL.Query().Get("base_path"), true)
+
+		var body rest.PutFilesInputSchema
+		err = common.ParseJSON(r, &body, false)
 		if err != nil {
-			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
+			logger.Debug(fmt.Sprintf("%s: invalid request body", err))
+			http.Error(w, "Bad data provided", http.StatusUnprocessableEntity)
 			return
 		}
-		schemas.JSONResponse(w, data, nil)
 
-		//schemas.LockWebDavResponse(w, http.StatusOK, lockInfo)
-	}))
+		items := body.Items
+		code, files := crud.HandlePut(&user, &items, basePath)
+
+		presignedUrls, err := aws.GetPresignedURLs(&files)
+		if err != nil {
+			common.HttpError(w, http.StatusInternalServerError, "Could not generate presigned URLs")
+			logger.Error(fmt.Sprintf("%s: could not generate presigned URLs", err))
+			return
+		}
+		var fileInResponseList []rest.FileInResponse
+
+		for _, file := range files {
+			fileInResponse := rest.FileInResponse{
+				FileID:       file.ID.String(),
+				Path:         file.Path,
+				PresignedURL: presignedUrls[*file.FileID],
+			}
+			fileInResponseList = append(fileInResponseList, fileInResponse)
+		}
+
+		schemas.JSONResponse(w, code, fileInResponseList)
+	})
 
 	return router
 }

@@ -6,45 +6,22 @@ import (
 	"burrowfs/core/db/models"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
-	"bytes"
+	"burrowfs/core/utils"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
-	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
-
-func getFileMetadata(data io.ReadCloser) (newData io.ReadCloser, mime *mimetype.MIME, fileSize int64) {
-	var logger = logging.Get("webdav/fileMetadata")
-	buf, err := io.ReadAll(io.LimitReader(data, 4096))
-	if err != nil {
-		logger.Error("Failed to read data: ", err)
-		return newData, nil, 0
-	}
-	mime = mimetype.Detect(buf)
-
-	remainingData, err := io.ReadAll(data)
-	if err != nil {
-		logger.Error("Failed to read remaining data: ", err)
-	}
-	fullContents := append(buf, remainingData...)
-	fileSize = int64(len(fullContents))
-	data = io.NopCloser(bytes.NewReader(fullContents))
-
-	logger.Debug("Detected MIME type: ", mime.String())
-	return data, mime, fileSize
-}
 
 // HandlePut processes a PUT request to upload or update a file.
 func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Path, data io.ReadCloser) int {
 	var logger = logging.Get("webdav/put")
 	logger.Info("PUT request for user: ", user)
 
-	data, mime, fileSize := getFileMetadata(data)
+	data, mime, fileSize := utils.GetFileMetadata(data)
 	if mime == nil {
 		logger.Error("Failed to detect MIME type")
 		return http.StatusInternalServerError
@@ -92,7 +69,7 @@ func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Pat
 			ContentType:  mime.String(),
 			Name:         newPath.Name,
 			Path:         newPath.Clean,
-			S3Key:        fmt.Sprintf("%s/%s/%d", user.Id, fileId, fileVersion),
+			S3Key:        utils.GenerateKey(user, fileId.String(), fileVersion),
 			Size:         fileSize,
 			ETag:         "", // To be generated after S3 upload
 			Version:      fileVersion,

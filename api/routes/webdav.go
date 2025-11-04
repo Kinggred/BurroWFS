@@ -20,9 +20,9 @@ func WebDavRoutes() http.Handler {
 	logger := logging.Get("webdav/router")
 	router := chi.NewRouter()
 
-	router.Options("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.Options("/*", func(w http.ResponseWriter, r *http.Request) {
 		schemas.JSONResponse(w, http.StatusOK, "OK")
-	}))
+	})
 
 	router.Method(methods.PROPFIND, "/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, err := utils.RetrieveUser(r.Context())
@@ -159,17 +159,22 @@ func WebDavRoutes() http.Handler {
 		if timeout == "" {
 			timeout = "Infinite"
 		}
-		var lockInfo schemas.LockInfo
-		err = common.ParseXML(r, &lockInfo)
-
-		data := handlers.HandleLock(&user, path, depth, timeout, lockInfo)
-		if err != nil {
-			common.HttpError(w, http.StatusInternalServerError, "Internal server error")
+		var lockInfo webdav.LockInfo
+		if err := common.ParseXML(r, &lockInfo); err != nil {
+			common.HttpError(w, http.StatusBadRequest, "Invalid XML body")
 			return
 		}
-		schemas.JSONResponse(w, data, nil)
 
-		//schemas.LockWebDavResponse(w, http.StatusOK, lockInfo)
+		status, resp, lockTokenHeader := handlers.HandleLock(&user, path, depth, timeout, lockInfo)
+		if resp == nil {
+			common.HttpError(w, status, http.StatusText(status))
+			return
+		}
+
+		if lockTokenHeader != "" {
+			w.Header().Set("Lock-Token", lockTokenHeader)
+		}
+		schemas.LockWebDavResponse(w, status, *resp)
 	}))
 
 	return router

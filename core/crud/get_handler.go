@@ -2,13 +2,13 @@ package crud
 
 import (
 	"burrowfs/core/db"
-	"burrowfs/core/db/models"
+	"burrowfs/core/db/models/files"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 	"net/http"
 )
 
-func HandleGet(user *types.InternalUser, path *types.Path, depth string) ([]models.File, int) {
+func HandleGet(user *types.InternalUser, path *types.Path, depth string) ([]files.File, int) {
 	logger := logging.Get("handlers/get")
 	dbConn, err := db.Open()
 	defer dbConn.Close()
@@ -17,14 +17,14 @@ func HandleGet(user *types.InternalUser, path *types.Path, depth string) ([]mode
 		return nil, http.StatusInternalServerError
 	}
 
-	files, err := models.GetUserFiles(dbConn, user.Id, path.Clean, depth)
+	userFiles, err := files.GetUserFiles(dbConn, user.Id, path.Clean, depth)
 	if err != nil {
 		logger.Error(err.Error())
 		return nil, http.StatusInternalServerError
 	}
-	if len(files) == 0 {
+	if len(userFiles) == 0 {
 		return nil, http.StatusNotFound
 	}
 
-	return files, http.StatusOK
+	return userFiles, http.StatusOK
 }

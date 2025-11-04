@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"burrowfs/core/db"
-	"burrowfs/core/db/models"
+	"burrowfs/core/db/models/files"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 	"errors"
@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// HandleMove processes a MOVE request to move or rename a file or directory.
+// HandleMove processes a MOVE request to move or rename a files or directory.
 func HandleMove(user *types.InternalUser, currentPath *types.Path, newPath *types.Path, overwrite bool) int {
 	logger := logging.Get("handlers/move")
 	dbConn, err := db.Open()
@@ -28,7 +28,7 @@ func HandleMove(user *types.InternalUser, currentPath *types.Path, newPath *type
 		return 403
 	}
 
-	newPathParent, err := models.GetFileByPath(dbConn, user.Id, newPath.ParentPath)
+	newPathParent, err := files.GetFileByPath(dbConn, user.Id, newPath.ParentPath)
 	if err != nil && newPath.ParentPath != "/" {
 		logger.Debug(err.Error())
 		return 409
@@ -36,7 +36,7 @@ func HandleMove(user *types.InternalUser, currentPath *types.Path, newPath *type
 		newPathParentId = &newPathParent.ID
 	}
 
-	destinationFile, err := models.GetFileByPath(dbConn, user.Id, newPath.Clean)
+	destinationFile, err := files.GetFileByPath(dbConn, user.Id, newPath.Clean)
 	if err == nil {
 		if !overwrite {
 			logger.Debug("File already exists at destination: ", destinationFile.Path)
@@ -51,21 +51,21 @@ func HandleMove(user *types.InternalUser, currentPath *types.Path, newPath *type
 
 	if currentPath.IsFolder() {
 		if destinationFile != nil {
-			deletedFilesIDs, err := models.DeleteDirectory(dbConn, user.Id, destinationFile)
+			deletedFilesIDs, err := files.DeleteDirectory(dbConn, user.Id, destinationFile)
 			if err != nil {
 				logger.Debug(err.Error())
 				return 500
 			}
-			// Log deleted file IDs for further processing (e.g., S3 cleanup)
+			// Log deleted files IDs for further processing (e.g., S3 cleanup)
 			// This is a placeholder for future S3 integration
 			// where we would delete the files from S3 storage as well
 			// For now, we just log the IDs
 			for _, fileID := range deletedFilesIDs {
-				logger.Debug("Deleted file ID: ", fileID)
+				logger.Debug("Deleted files ID: ", fileID)
 				// TODO: S3 Integration
 			}
 		}
-		err := models.MoveDirectory(dbConn, user.Id, currentPath, newPath, newPathParentId)
+		err := files.MoveDirectory(dbConn, user.Id, currentPath, newPath, newPathParentId)
 		if err != nil {
 			logger.Error(err.Error())
 			return 500
@@ -74,13 +74,13 @@ func HandleMove(user *types.InternalUser, currentPath *types.Path, newPath *type
 
 	} else {
 		if destinationFile != nil {
-			err = models.DeleteFileByID(dbConn, destinationFile.ID)
+			err = files.DeleteFileByID(dbConn, destinationFile.ID)
 			if err != nil {
 				logger.Debug(err.Error())
 				return 412
 			}
 		}
-		err = models.MoveFile(dbConn, user.Id, currentPath, newPath, newPathParent)
+		err = files.MoveFile(dbConn, user.Id, currentPath, newPath, newPathParent)
 		if err != nil {
 			logger.Debug(err.Error())
 			return 500

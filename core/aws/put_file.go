@@ -2,7 +2,7 @@ package aws
 
 import (
 	"burrowfs/core/config"
-	"burrowfs/core/db/models"
+	"burrowfs/core/db/models/files"
 	"bytes"
 	"context"
 	"errors"
@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-func multiPartUpload(ctx context.Context, s3Client *s3.Client, file *models.File, data io.Reader) (string, error) {
+func multiPartUpload(ctx context.Context, s3Client *s3.Client, file *files.File, data io.Reader) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -97,7 +97,7 @@ func multiPartUpload(ctx context.Context, s3Client *s3.Client, file *models.File
 	return strings.Trim(*output.ETag, strconv.Itoa(int('"'))), nil
 }
 
-func singlePartUpload(ctx context.Context, s3Client *s3.Client, file *models.File, data io.Reader) (string, error) {
+func singlePartUpload(ctx context.Context, s3Client *s3.Client, file *files.File, data io.Reader) (string, error) {
 	settings := config.CONFIG
 	output, err := s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        &settings.AWSBucket,
@@ -113,7 +113,7 @@ func singlePartUpload(ctx context.Context, s3Client *s3.Client, file *models.Fil
 	return strings.Trim(*output.ETag, strconv.Itoa(int('"'))), nil
 }
 
-func PutFile(ctx context.Context, file *models.File, data io.Reader) (string, error) {
+func PutFile(ctx context.Context, file *files.File, data io.Reader) (string, error) {
 	s3Client := InitS3()
 	var eTag = ""
 	var err error

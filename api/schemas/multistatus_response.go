@@ -82,6 +82,9 @@ func resourceObjectWriter(xw *xmlwriter.XMLWriter, davNS *xmlwriter.NS, resource
 
 func MultistatusWebDavResponse(w http.ResponseWriter, response webdav.MultistatusSchema, fromRoot bool) {
 	logger := logging.Get("xmlResponse")
+	w.Header().Set("DAV", "1, 2")
+	w.Header().Set("MS-Author-Via", "DAV")
+	w.Header().Set("Allow", "OPTIONS, GET, HEAD, POST, PUT, DELETE, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, LOCK, UNLOCK")
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(207)
 

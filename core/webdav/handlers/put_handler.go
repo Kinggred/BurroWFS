@@ -3,7 +3,7 @@ package handlers
 import (
 	"burrowfs/core/aws"
 	"burrowfs/core/db"
-	"burrowfs/core/db/models"
+	"burrowfs/core/db/models/files"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 	"burrowfs/core/utils"
@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// HandlePut processes a PUT request to upload or update a file.
+// HandlePut processes a PUT request to upload or update a files.
 func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Path, data io.ReadCloser) int {
 	var logger = logging.Get("webdav/put")
 	logger.Info("PUT request for user: ", user)
@@ -40,11 +40,11 @@ func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Pat
 
 	var pathParentID *uuid.UUID = nil
 
-	file, err := models.GetFileByPath(dbConn, user.Id, newPath.Clean)
+	file, err := files.GetFileByPath(dbConn, user.Id, newPath.Clean)
 	if err == nil {
 	} else if errors.Is(err, pgx.ErrNoRows) {
 		if newPath.ParentPath != "/" {
-			dirParent, err := models.GetFileByPath(dbConn, user.Id, newPath.ParentPath)
+			dirParent, err := files.GetFileByPath(dbConn, user.Id, newPath.ParentPath)
 			if err != nil {
 				logger.Error("Parent folder not found: ", err)
 				return http.StatusConflict
@@ -54,14 +54,14 @@ func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Pat
 			pathParentID = nil
 		}
 	} else {
-		logger.Error("Failed to check existing file: ", err)
+		logger.Error("Failed to check existing files: ", err)
 		return http.StatusInternalServerError
 	}
 
 	if file == nil {
 		fileId := uuid.New()
 		fileVersion := 1
-		file = &models.File{
+		file = &files.File{
 			ID:           uuid.New(),
 			FileID:       &fileId,
 			OwnerID:      user.Id,
@@ -74,13 +74,13 @@ func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Pat
 			ETag:         "", // To be generated after S3 upload
 			Version:      fileVersion,
 		}
-		logger.Info("Created new file: ", file.Path)
+		logger.Info("Created new files: ", file.Path)
 	} else {
 		logger.Error("File versioning not implemented yet")
 		return http.StatusInternalServerError
 		// TODO: Implement versioning
-		//newVersion := file.Version + 1
-		// Update existing file record with new version
+		//newVersion := files.Version + 1
+		// Update existing files record with new version
 		// create a method saving previous version
 	}
 
@@ -92,7 +92,7 @@ func HandlePut(ctx context.Context, user *types.InternalUser, newPath *types.Pat
 	// Update the ETag after successful upload via lambda events possibly
 	file.ETag = eTag
 
-	_, err = models.CreateFile(dbConn, file)
+	_, err = files.CreateFile(dbConn, file)
 
 	return http.StatusCreated
 }

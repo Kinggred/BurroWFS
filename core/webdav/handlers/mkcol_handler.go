@@ -2,14 +2,14 @@ package handlers
 
 import (
 	"burrowfs/core/db"
-	"burrowfs/core/db/models"
+	"burrowfs/core/db/models/files"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 
 	"github.com/google/uuid"
 )
 
-// HandleMkcol returns statusCode and file location
+// HandleMkcol returns statusCode and files location
 func HandleMkcol(user types.InternalUser, newPath *types.Path) (status int, location string) {
 	logger := logging.Get("webdav/mkcol")
 	dbConn, err := db.Open()
@@ -27,7 +27,7 @@ func HandleMkcol(user types.InternalUser, newPath *types.Path) (status int, loca
 	} else if newPath.ParentPath == "/" {
 		pathParentID = nil
 	} else {
-		dirParent, err := models.GetFileByPath(dbConn, user.Id, newPath.ParentPath)
+		dirParent, err := files.GetFileByPath(dbConn, user.Id, newPath.ParentPath)
 		if err != nil {
 			logger.Debug(err.Error())
 			logger.Info("Parent folder not found")
@@ -36,7 +36,7 @@ func HandleMkcol(user types.InternalUser, newPath *types.Path) (status int, loca
 		pathParentID = &dirParent.ID
 	}
 
-	file := models.File{
+	file := files.File{
 		ID:           uuid.New(),
 		OwnerID:      user.Id,
 		PathParentID: pathParentID,
@@ -45,7 +45,7 @@ func HandleMkcol(user types.InternalUser, newPath *types.Path) (status int, loca
 		Size:         0,
 	}
 
-	_, err = models.CreateFile(dbConn, &file)
+	_, err = files.CreateFile(dbConn, &file)
 	if err != nil {
 		logger.Error(err.Error())
 		return 500, ""

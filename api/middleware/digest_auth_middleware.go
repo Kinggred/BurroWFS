@@ -35,19 +35,6 @@ func hash(data []byte) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func IsWebDAVMethod(method string) bool {
-	webDAVMethods := map[string]bool{
-		"PROPFIND":  true,
-		"PROPPATCH": true,
-		"MKCOL":     true,
-		"COPY":      true,
-		"MOVE":      true,
-		"LOCK":      true,
-		"UNLOCK":    true,
-	}
-	return webDAVMethods[method]
-}
-
 func ValidateDigest(username, uri, method, givenResponse, givenNonce string, dbConn *db.DB) bool {
 	user, err := models.GetUserByEmail(dbConn, username)
 	if err != nil || user == nil {

@@ -8,7 +8,7 @@ import (
 
 type FileVersion struct {
 	ID          uuid.UUID  `db:"id" json:"id"`
-	FileID      *uuid.UUID `db:"file_id" json:"file_id"`     // links to main file
+	FileID      *uuid.UUID `db:"file_id" json:"file_id"`     // links to main files
 	FolderID    *uuid.UUID `db:"folder_id" json:"folder_id"` // optional, record folder at the time
 	OwnerID     uuid.UUID  `db:"owner_id" json:"owner_id"`
 	ContentType string     `db:"content_type" json:"content_type"`

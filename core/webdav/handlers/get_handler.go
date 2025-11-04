@@ -3,7 +3,7 @@ package handlers
 import (
 	"burrowfs/core/aws"
 	"burrowfs/core/db"
-	"burrowfs/core/db/models"
+	"burrowfs/core/db/models/files"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 	"burrowfs/core/utils"
@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// HandleGet processes a GET request to retrieve a file's metadata and content.
+// HandleGet processes a GET request to retrieve a files's metadata and content.
 func HandleGet(ctx context.Context, user *types.InternalUser, path *types.Path, blockRedirect bool) (status int, combinedResponse *types.CombinedResponses) {
 	logger := logging.Get("handlers/get")
 	dbConn, err := db.Open()
@@ -24,7 +24,7 @@ func HandleGet(ctx context.Context, user *types.InternalUser, path *types.Path, 
 		return http.StatusInternalServerError, nil
 	}
 
-	file, err := models.GetFileByPath(dbConn, user.Id, path.Clean)
+	file, err := files.GetFileByPath(dbConn, user.Id, path.Clean)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return http.StatusNotFound, nil
@@ -39,14 +39,14 @@ func HandleGet(ctx context.Context, user *types.InternalUser, path *types.Path, 
 	if blockRedirect {
 		stream, err := aws.GetFileStream(ctx, file.S3Key)
 		if err != nil {
-			logger.Error("Failed to get S3 file stream: ", err)
+			logger.Error("Failed to get S3 files stream: ", err)
 			return http.StatusInternalServerError, nil
 		}
 		combinedResponse.Data = stream
 	} else {
 		combinedResponse.Address, err = aws.GetFileURL(ctx, file.S3Key)
 		if err != nil {
-			logger.Error("Failed to get S3 file URL: ", err)
+			logger.Error("Failed to get S3 files URL: ", err)
 			return http.StatusInternalServerError, nil
 		}
 	}

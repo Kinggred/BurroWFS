@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// PutFilesInputSchema defines the expected input for uploading a file.
+// PutFilesInputSchema defines the expected input for uploading a files.
 type PutFilesInputSchema struct {
 	Items []FileInRequest `json:"items"`
 }

@@ -3,7 +3,7 @@ package crud
 import (
 	"burrowfs/api/schemas/rest"
 	"burrowfs/core/db"
-	"burrowfs/core/db/models"
+	"burrowfs/core/db/models/files"
 	"burrowfs/core/logging"
 	"burrowfs/core/types"
 	"burrowfs/core/utils"
@@ -25,11 +25,11 @@ func HandlePut(user *types.InternalUser, filesToAdd *[]rest.FileInRequest, baseP
 		return http.StatusInternalServerError, nil
 	}
 
-	var createdFiles []*models.File
+	var createdFiles []*files.File
 	var status int
 
 	for _, file := range *filesToAdd {
-		var parentDir *models.File
+		var parentDir *files.File
 		var fileID uuid.UUID
 		path := basePath.MergePaths(*utils.RetrievePath(file.RelativePath, true))
 		if path.IsFolder() {
@@ -37,7 +37,7 @@ func HandlePut(user *types.InternalUser, filesToAdd *[]rest.FileInRequest, baseP
 		} else {
 			// Verify all parent directories exist
 			if !path.IsParentRoot() {
-				parentDir, err = models.GetFileByPath(dbConn, user.Id, path.ParentPath)
+				parentDir, err = files.GetFileByPath(dbConn, user.Id, path.ParentPath)
 				if err != nil {
 					logger.Error("Parent directory does not exist: ", err)
 					return http.StatusConflict, nil
@@ -54,7 +54,7 @@ func HandlePut(user *types.InternalUser, filesToAdd *[]rest.FileInRequest, baseP
 			}
 			_, mimetype, _ := utils.GetFileMetadata(file.GetReadCloser())
 
-			fileToAdd := models.File{
+			fileToAdd := files.File{
 				ID:           uuid.New(),
 				FileID:       &fileID,
 				OwnerID:      user.Id,
@@ -73,7 +73,7 @@ func HandlePut(user *types.InternalUser, filesToAdd *[]rest.FileInRequest, baseP
 			newFiles = append(newFiles, fileToAdd.ToDTO())
 		}
 	}
-	_, err = models.CreateBatch(dbConn, createdFiles)
+	_, err = files.CreateBatch(dbConn, createdFiles)
 	if err != nil {
 		return http.StatusInternalServerError, nil
 	}
